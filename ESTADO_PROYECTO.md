@@ -51,4 +51,48 @@ Crear el commit inicial en Git (`git commit`) y proceder con la configuración d
 * **Nombre del commit:** `feat: inicializacion de bitacora y control de versiones local`
 * **Hash del commit:** `1f933889d2650abbc5cb17044c0cce6e96bffb51`
 
+---
+
+## 2. FASE 1 — Respaldo de Seguridad y Punto de Restauración Completo
+
+### Fecha y hora
+12 de agosto de 2026, 15:25 hrs (Chile)
+
+### Objetivo
+Asegurar la integridad total del sistema local antes de realizar cualquier ajuste para el despliegue online. Generar respaldos físicos y lógicos de la base de datos de SQLite y verificar que el repositorio Git local represente exactamente la versión funcional.
+
+### Cambios realizados
+* **Verificación de Respaldo Previo:** Se constató la existencia del archivo de respaldo en formato JSON `backups/vercel/export-2026-08-12T17-05-22-541Z.json`.
+* **Exportación JSON Fresca:** Se ejecutó `npm run data:export:vercel` para generar una exportación JSON actualizada de la base de datos SQLite en `backups/vercel/export-2026-08-12T19-23-57-771Z.json`.
+* **Respaldo Físico SQLite:** Se realizó una copia física directa de la base de datos de producción local `prisma/dev.db` hacia `backups/2026-08-12/dev-fase1-baseline.db`.
+* **Punto de Restauración en Git:** Se confirmó que el árbol de trabajo Git está 100% limpio y respaldado en commits sobre la rama `master`.
+
+### Estado final
+* **Quedó funcionando:** 
+  * Respaldo físico SQLite asegurado en carpeta `backups/2026-08-12/`.
+  * Respaldo estructurado JSON para migración a Supabase asegurado en `backups/vercel/`.
+  * Repositorio Git limpio en commit `2768ee5` (`1f933889d2650abbc5cb17044c0cce6e96bffb51`).
+
+### Pruebas realizadas
+1. **Verificación de Archivos de Respaldo:** Se comprobó la creación exitosa y lectura de `export-2026-08-12T19-23-57-771Z.json` y `dev-fase1-baseline.db`.
+2. **Estado del Repositorio:** Se ejecutó `git status` confirmando que no hay cambios pendientes ni archivos no rastreados en conflicto.
+
+### Variables o servicios involucrados
+* **Base de datos local:** SQLite (`prisma/dev.db`).
+* **Archivos de respaldo:** `backups/2026-08-12/dev-fase1-baseline.db` y `backups/vercel/export-2026-08-12T19-23-57-771Z.json`.
+* **Git:** Commits `1f93388` y `2768ee5`.
+
+### Pendientes
+* **Fase 2:** Analizar la estructura de Supabase PostgreSQL y verificar la compatibilidad del esquema Prisma.
+* **Fase 3:** Configurar variables de entorno en el proyecto Vercel `sistema-comercial-automotriz` (`DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`).
+* **Fase 4:** Crear un usuario seguro exclusivo para demos públicas (ej. `demo@panel360autos.cl`).
+
+### Próximo paso recomendado
+Aguardar la autorización del usuario para iniciar la **FASE 2 (Preparar base de datos online en Supabase)**.
+
+### Punto de restauración
+* **Nombre del commit:** `docs: actualizar bitacora con respaldo de seguridad Fase 1`
+* **Hash del commit:** `2768ee55cae5fcfb939e6a3d906bd5fa2c92e76f`
+
+
 
