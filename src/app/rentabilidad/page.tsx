@@ -1,0 +1,58 @@
+import { ProfitabilitySheet } from "@/components/profitability-sheet";
+import { Notice, PageHeader } from "@/components/ui";
+import { prisma } from "@/lib/prisma";
+
+export const dynamic = "force-dynamic";
+
+function searchValue(value?: string | string[]) {
+  if (Array.isArray(value)) return value[0] ?? "";
+  return value ?? "";
+}
+
+export default async function ProfitabilityPage({ searchParams }: { searchParams?: Record<string, string | string[] | undefined> }) {
+  const versions = await prisma.version.findMany({
+    include: {
+      brand: true,
+      model: true,
+      prices: { where: { status: "VIGENTE" }, orderBy: { effectiveFrom: "desc" } }
+    },
+    orderBy: [{ brand: { name: "asc" } }, { model: { name: "asc" } }, { commercialOrder: "asc" }, { name: "asc" }]
+  });
+
+  const vehicles = versions.map((version) => {
+    const listPrice = version.prices.find((price) => price.priceType === "LIST")?.amount ?? null;
+    const campaignPrice = version.prices.find((price) => price.priceType === "CAMPAIGN")?.amount ?? null;
+    return {
+      id: version.id,
+      label: `${version.brand.name} ${version.model.name} ${version.name}`,
+      brandName: version.brand.name,
+      modelName: version.model.name,
+      versionName: version.name,
+      citCode: version.sapCode,
+      listPrice,
+      campaignPrice
+    };
+  });
+
+  const dateParts = new Intl.DateTimeFormat("en-CA", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "America/Santiago",
+    year: "numeric"
+  }).formatToParts(new Date());
+  const dateByType = Object.fromEntries(dateParts.map((part) => [part.type, part.value]));
+  const today = `${dateByType.year}-${dateByType.month}-${dateByType.day}`;
+
+  return (
+    <div className="grid gap-6">
+      <PageHeader
+        title="Hoja de rentabilidad"
+        description="Completa la hoja con datos reales del catalogo, valores editables, Codigo CIT, permiso de circulacion e Imp. Fuentes Movs."
+      />
+      <Notice>
+        El permiso de circulacion se consulta con el Precio Lista Final neto y fecha de factura del dia. El Imp. Fuentes Movs. se completa con el resultado del SII usando marca, modelo, Codigo CIT y precio venta con IVA.
+      </Notice>
+      <ProfitabilitySheet vehicles={vehicles} today={today} initialState={{ selectedVersionId: searchValue(searchParams?.versionId) }} />
+    </div>
+  );
+}

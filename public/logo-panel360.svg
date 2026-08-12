@@ -1,0 +1,457 @@
+<svg
+  width="840"
+  height="320"
+  viewBox="0 0 840 320"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+  role="img"
+  aria-labelledby="titulo descripcion"
+>
+  <title id="titulo">Panel360</title>
+  <desc id="descripcion">Logo vectorial transparente de Panel360 con simbolo de IA animado.</desc>
+  <style>
+    .halo {
+      animation: haloRespira 3.8s ease-in-out infinite;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    .nodo {
+      animation: nodoPulso 2.8s ease-in-out infinite;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    .nodo-2 {
+      animation-delay: 0.45s;
+    }
+
+    .nodo-3 {
+      animation-delay: 0.9s;
+    }
+
+    .nucleo {
+      animation: nucleoVivo 2.6s ease-in-out infinite;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    .luz-marca {
+      animation: luzRecorre 5.8s linear infinite;
+      filter: drop-shadow(0 0 8px #67e8f9) drop-shadow(0 0 18px #14b8a6);
+      opacity: 0;
+      stroke: #ccfbf1;
+      stroke-dasharray: 7 93;
+      stroke-dashoffset: 100;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    .destello {
+      animation: destelloExplota 2.4s ease-out infinite;
+      transform-box: fill-box;
+      transform-origin: center;
+      opacity: 0;
+    }
+
+    .horizonte-eventos {
+      animation: horizontePulso 2.8s ease-in-out infinite;
+      filter: drop-shadow(0 0 16px #0ea5e9) drop-shadow(0 0 28px #14b8a6);
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    .disco-acrecion {
+      animation: discoAcrecion 2.6s linear infinite;
+      filter: drop-shadow(0 0 10px #67e8f9) drop-shadow(0 0 20px #14b8a6);
+      stroke-dasharray: 22 16;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    .vortice-digital {
+      animation: vorticeAbsorbe 2.6s ease-in-out infinite;
+      filter: drop-shadow(0 0 12px #22d3ee);
+      stroke-dasharray: 34 110;
+      stroke-dashoffset: 0;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    .anillo-absorcion {
+      animation: anilloAbsorbe 2.6s ease-in infinite;
+      filter: drop-shadow(0 0 12px #67e8f9);
+      opacity: 0;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    .anillo-absorcion-2 {
+      animation-delay: 0.42s;
+    }
+
+    .anillo-absorcion-3 {
+      animation-delay: 0.84s;
+    }
+
+    .pixel-absorcion {
+      animation: pixelAbsorbe 2.6s ease-in infinite;
+      filter: drop-shadow(0 0 8px #67e8f9);
+      opacity: 0;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    .pixel-absorcion-2 {
+      animation-delay: 0.28s;
+    }
+
+    .pixel-absorcion-3 {
+      animation-delay: 0.56s;
+    }
+
+    .degradacion-digital {
+      animation: degradacionDigital 1.8s steps(2, end) infinite;
+      filter: drop-shadow(0 0 7px #22d3ee);
+      opacity: 0;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    .destello-2 {
+      animation-delay: 0.35s;
+    }
+
+    .destello-3 {
+      animation-delay: 0.7s;
+    }
+
+    .particula {
+      animation: particulaFlota 3.2s ease-in-out infinite;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    .particula-2 {
+      animation-delay: 0.6s;
+    }
+
+    .particula-3 {
+      animation-delay: 1.1s;
+    }
+
+    .brillo-texto {
+      animation: textoBrilla 4.2s ease-in-out infinite;
+    }
+
+    @keyframes haloRespira {
+      0%, 100% {
+        opacity: 0.78;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 1;
+        transform: scale(1.025);
+      }
+    }
+
+    @keyframes nodoPulso {
+      0%, 100% {
+        filter: drop-shadow(0 0 3px #67e8f9);
+        transform: scale(1);
+      }
+      50% {
+        filter: drop-shadow(0 0 14px #5eead4);
+        transform: scale(1.12);
+      }
+    }
+
+    @keyframes nucleoVivo {
+      0%, 100% {
+        opacity: 0.88;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 1;
+        transform: scale(1.08);
+      }
+    }
+
+    @keyframes luzRecorre {
+      0% {
+        opacity: 0;
+        stroke-dashoffset: 100;
+      }
+      10% {
+        opacity: 0.95;
+      }
+      68% {
+        opacity: 1;
+      }
+      92% {
+        opacity: 0.95;
+        stroke-dashoffset: 0;
+      }
+      100% {
+        opacity: 0;
+        stroke-dashoffset: -18;
+      }
+    }
+
+    @keyframes horizontePulso {
+      0%, 100% {
+        opacity: 0.94;
+        transform: scale(0.96);
+      }
+      50% {
+        opacity: 1;
+        transform: scale(1.08);
+      }
+    }
+
+    @keyframes discoAcrecion {
+      0% {
+        stroke-dashoffset: 0;
+        transform: rotate(0deg) scaleX(1);
+      }
+      100% {
+        stroke-dashoffset: -76;
+        transform: rotate(360deg) scaleX(1);
+      }
+    }
+
+    @keyframes vorticeAbsorbe {
+      0% {
+        opacity: 0.2;
+        stroke-dashoffset: 110;
+        transform: rotate(0deg) scale(1.24);
+      }
+      38% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        stroke-dashoffset: 0;
+        transform: rotate(-28deg) scale(0.58);
+      }
+    }
+
+    @keyframes anilloAbsorbe {
+      0% {
+        opacity: 0;
+        transform: scale(1.95) rotate(0deg);
+      }
+      18% {
+        opacity: 0.9;
+      }
+      76% {
+        opacity: 0.72;
+        transform: scale(0.62) rotate(-18deg);
+      }
+      100% {
+        opacity: 0;
+        transform: scale(0.18) rotate(-32deg);
+      }
+    }
+
+    @keyframes pixelAbsorbe {
+      0% {
+        opacity: 0;
+        transform: translate3d(var(--dx), var(--dy), 0) scale(1.35) rotate(var(--rot));
+      }
+      18% {
+        opacity: 1;
+      }
+      74% {
+        opacity: 0.86;
+      }
+      100% {
+        opacity: 0;
+        transform: translate3d(0, 0, 0) scale(0.18) rotate(0deg);
+      }
+    }
+
+    @keyframes degradacionDigital {
+      0%, 100% {
+        opacity: 0;
+        transform: translate3d(-7px, 0, 0);
+      }
+      18% {
+        opacity: 0.76;
+      }
+      35% {
+        opacity: 0.18;
+        transform: translate3d(9px, 0, 0);
+      }
+      52% {
+        opacity: 0.72;
+        transform: translate3d(-3px, 0, 0);
+      }
+    }
+
+    @keyframes destelloExplota {
+      0% {
+        opacity: 0;
+        transform: scale(0.35) rotate(0deg);
+      }
+      18% {
+        opacity: 1;
+      }
+      58% {
+        opacity: 0.78;
+        transform: scale(1.15) rotate(10deg);
+      }
+      100% {
+        opacity: 0;
+        transform: scale(1.65) rotate(20deg);
+      }
+    }
+
+    @keyframes particulaFlota {
+      0%, 100% {
+        opacity: 0.35;
+        transform: translate3d(0, 0, 0) scale(0.9);
+      }
+      50% {
+        opacity: 1;
+        transform: translate3d(0, -8px, 0) scale(1.18);
+      }
+    }
+
+    @keyframes textoBrilla {
+      0%, 100% {
+        opacity: 0.96;
+      }
+      50% {
+        opacity: 1;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .halo,
+      .nodo,
+      .nucleo,
+      .luz-marca,
+      .horizonte-eventos,
+      .disco-acrecion,
+      .vortice-digital,
+      .anillo-absorcion,
+      .pixel-absorcion,
+      .degradacion-digital,
+      .destello,
+      .particula,
+      .brillo-texto {
+        animation: none;
+      }
+    }
+  </style>
+
+  <defs>
+    <linearGradient id="trazoPrincipal" x1="159" y1="263" x2="447" y2="103" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f2f68"/>
+      <stop offset="0.45" stop-color="#1099c7"/>
+      <stop offset="1" stop-color="#66f2c3"/>
+    </linearGradient>
+    <linearGradient id="texto360" x1="610" y1="162" x2="760" y2="162" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1184b8"/>
+      <stop offset="1" stop-color="#19c7b2"/>
+    </linearGradient>
+    <radialGradient id="centroIA" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(321 169) rotate(90) scale(45)">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.34" stop-color="#a7f3ff"/>
+      <stop offset="0.74" stop-color="#27c7d4"/>
+      <stop offset="1" stop-color="#0e7490"/>
+    </radialGradient>
+    <radialGradient id="nucleoAzul" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(321 169) rotate(90) scale(56)">
+      <stop offset="0" stop-color="#0f2f68"/>
+      <stop offset="0.34" stop-color="#126c9f"/>
+      <stop offset="0.62" stop-color="#0eacc4"/>
+      <stop offset="0.78" stop-color="#5eead4"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="discoDigital" x1="247" y1="169" x2="395" y2="169" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f2f68" stop-opacity="0.2"/>
+      <stop offset="0.24" stop-color="#38bdf8"/>
+      <stop offset="0.55" stop-color="#ccfbf1"/>
+      <stop offset="0.86" stop-color="#14b8a6"/>
+      <stop offset="1" stop-color="#0f2f68" stop-opacity="0.18"/>
+    </linearGradient>
+    <filter id="sombraSuave" x="-260" y="-160" width="1400" height="1000" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#0f766e" flood-opacity="0.18"/>
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#0f2f68" flood-opacity="0.16"/>
+    </filter>
+    <filter id="glowIA" x="-260" y="-160" width="1400" height="1000" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <g filter="url(#sombraSuave)" transform="translate(300 20) scale(0.58)">
+    <path
+      class="halo"
+      d="M224 205V141C224 82 267 42 324 42C387 42 434 88 434 150C434 213 388 258 324 258H276C244 258 222 280 222 313V323C222 348 205 366 181 366C158 366 141 349 141 325V314C141 266 169 230 213 214C232 207 251 203 274 203H327C354 203 373 182 373 155C373 128 352 108 323 108C296 108 277 127 277 154V194"
+      stroke="url(#trazoPrincipal)"
+      stroke-width="26"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+
+    <path
+      d="M216 265C165 244 136 198 136 148C136 75 193 28 275 29C348 30 421 64 451 123C481 181 465 248 415 286"
+      stroke="url(#trazoPrincipal)"
+      stroke-width="15"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+
+    <path
+      class="luz-marca"
+      d="M136 188C125 118 175 45 275 29C348 30 421 64 451 123C481 181 465 248 415 286C388 304 350 302 323 290C294 276 278 258 276 258C244 258 222 280 222 313V323C222 348 205 366 181 366C158 366 141 349 141 325V314C141 266 169 230 213 214C232 207 251 203 274 203H327C354 203 373 182 373 155C373 128 352 108 323 108C296 108 277 127 277 154V194C259 199 239 202 224 205V141C224 82 267 42 324 42"
+      fill="none"
+      pathLength="100"
+      stroke-width="10"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+
+    <circle class="nodo" cx="287" cy="30" r="18" fill="#ccfbf1" stroke="#5eead4" stroke-width="8"/>
+    <circle class="nodo nodo-2" cx="136" cy="188" r="17" fill="#dffbff" stroke="#38bdf8" stroke-width="8"/>
+    <circle class="nodo nodo-3" cx="454" cy="196" r="17" fill="#dffbf2" stroke="#5eead4" stroke-width="8"/>
+  </g>
+
+  <g filter="url(#glowIA)" transform="translate(300 20) scale(0.58)">
+    <ellipse class="anillo-absorcion" cx="321" cy="169" rx="92" ry="34" fill="none" stroke="#67e8f9" stroke-width="4"/>
+    <ellipse class="anillo-absorcion anillo-absorcion-2" cx="321" cy="169" rx="78" ry="27" fill="none" stroke="#5eead4" stroke-width="3.4"/>
+    <ellipse class="anillo-absorcion anillo-absorcion-3" cx="321" cy="169" rx="64" ry="21" fill="none" stroke="#ccfbf1" stroke-width="3"/>
+
+    <path class="vortice-digital" d="M256 169C268 123 352 112 381 151C408 188 366 232 315 215C279 203 270 166 297 146C324 126 363 145 359 174C355 199 321 207 305 190C292 176 301 154 321 154" fill="none" stroke="#67e8f9" stroke-width="5" stroke-linecap="round"/>
+    <ellipse class="disco-acrecion" cx="321" cy="169" rx="75" ry="24" fill="none" stroke="url(#discoDigital)" stroke-width="8"/>
+
+    <rect class="degradacion-digital" x="260" y="133" width="44" height="5" rx="2.5" fill="#67e8f9"/>
+    <rect class="degradacion-digital" x="336" y="138" width="49" height="4" rx="2" fill="#5eead4"/>
+    <rect class="degradacion-digital" x="273" y="205" width="52" height="5" rx="2.5" fill="#38bdf8"/>
+    <rect class="degradacion-digital" x="342" y="198" width="31" height="4" rx="2" fill="#ccfbf1"/>
+
+    <rect class="pixel-absorcion" style="--dx: -88px; --dy: -50px; --rot: -18deg" x="316" y="164" width="10" height="10" rx="2" fill="#ffffff"/>
+    <rect class="pixel-absorcion pixel-absorcion-2" style="--dx: 86px; --dy: -37px; --rot: 12deg" x="316" y="164" width="9" height="9" rx="2" fill="#ccfbf1"/>
+    <rect class="pixel-absorcion pixel-absorcion-3" style="--dx: -71px; --dy: 58px; --rot: 28deg" x="317" y="165" width="8" height="8" rx="2" fill="#38bdf8"/>
+    <rect class="pixel-absorcion" style="--dx: 74px; --dy: 54px; --rot: -24deg" x="317" y="165" width="8" height="8" rx="2" fill="#5eead4"/>
+    <rect class="pixel-absorcion pixel-absorcion-2" style="--dx: 0px; --dy: -86px; --rot: 18deg" x="318" y="166" width="7" height="7" rx="2" fill="#e0f2fe"/>
+    <rect class="pixel-absorcion pixel-absorcion-3" style="--dx: 0px; --dy: 82px; --rot: -12deg" x="318" y="166" width="7" height="7" rx="2" fill="#67e8f9"/>
+
+    <circle class="horizonte-eventos" cx="321" cy="169" r="42" fill="url(#nucleoAzul)"/>
+    <circle cx="321" cy="169" r="25" fill="#0b5f8a" opacity="0.92"/>
+    <circle cx="321" cy="169" r="31" fill="none" stroke="#67e8f9" stroke-opacity="0.88" stroke-width="2.8"/>
+    <circle cx="321" cy="169" r="15" fill="#38bdf8" opacity="0.58"/>
+    <circle cx="321" cy="169" r="8" fill="#ccfbf1" opacity="0.65"/>
+  </g>
+
+  <g class="brillo-texto">
+    <text x="62" y="178" fill="#0d2e63" font-family="Inter, Montserrat, Arial, Helvetica, sans-serif" font-size="82" font-weight="900" letter-spacing="-2">PANEL</text>
+    <text x="610" y="178" fill="url(#texto360)" font-family="Inter, Montserrat, Arial, Helvetica, sans-serif" font-size="86" font-weight="900" letter-spacing="-2">360</text>
+    <text x="420" y="272" text-anchor="middle" fill="#0d2e63" font-family="Inter, Montserrat, Arial, Helvetica, sans-serif" font-size="25" font-weight="800" letter-spacing="1.6">TU NEGOCIO, DIGITAL E INTELIGENTE</text>
+  </g>
+</svg>

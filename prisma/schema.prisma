@@ -1,0 +1,611 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Brand {
+  id        String         @id @default(cuid())
+  name      String         @unique
+  active    Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  models    VehicleModel[]
+  versions  Version[]
+  documents Document[]
+
+  @@map("brands")
+}
+
+model AppUser {
+  id            String               @id @default(cuid())
+  name          String
+  email         String               @unique
+  passwordHash  String
+  role          String               @default("ADMIN")
+  status        String               @default("ACTIVO")
+  lastLoginAt   DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  resetTokens   PasswordResetToken[]
+
+  @@map("app_users")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      AppUser   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model VehicleModel {
+  id                 String               @id @default(cuid())
+  brandId            String
+  name               String
+  segment            String?
+  fuelTypes          String?
+  transmissions      String?
+  tractions          String?
+  imagePath          String?
+  commercialPosition Int                  @default(0)
+  status             String               @default("BORRADOR")
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  brand              Brand                @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  versions           Version[]
+  campaigns          CommercialCampaign[]
+
+  @@unique([brandId, name])
+  @@map("models")
+}
+
+model Version {
+  id                 String             @id @default(cuid())
+  brandId            String
+  modelId            String
+  name               String
+  sapCode            String?
+  modelYear          String?
+  engine             String?
+  displacement       String?
+  turbo              Boolean?
+  power              String?
+  torque             String?
+  transmission       String?
+  gears              String?
+  traction           String?
+  fuelType           String?
+  consumption        String?
+  autonomy           String?
+  passengers         String?
+  cargoCapacity      String?
+  wheels             String?
+  screen             String?
+  carPlay            String?
+  androidAuto        String?
+  camera             String?
+  sensors            String?
+  roof               String?
+  seats              String?
+  climateControl     String?
+  airbags            String?
+  adas               String?
+  cruiseControl      String?
+  equipmentSummary   String?
+  safetySummary      String?
+  warranty           String?
+  observations       String?
+  commercialOrder    Int                @default(0)
+  status             String             @default("BORRADOR")
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  brand              Brand              @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  model              VehicleModel       @relation(fields: [modelId], references: [id], onDelete: Restrict)
+  prices             Price[]
+  priceHistory       PriceHistory[]
+  campaigns          CommercialCampaign[]
+  bonuses            Bonus[]
+  benefits           Benefit[]
+  quoteItems         QuoteItem[]
+  interests          CustomerInterest[]
+
+  @@unique([modelId, name])
+  @@map("versions")
+}
+
+model Price {
+  id            String         @id @default(cuid())
+  versionId     String
+  priceType     String
+  amount        Int
+  currency      String         @default("CLP")
+  effectiveFrom DateTime       @default(now())
+  effectiveTo   DateTime?
+  status        String         @default("DETECTADO")
+  sourceId      String?
+  documentId    String?
+  approvedBy    String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  version       Version        @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  document      Document?      @relation(fields: [documentId], references: [id])
+  source        Update?        @relation(fields: [sourceId], references: [id])
+  history       PriceHistory[]
+
+  @@index([versionId, priceType, status])
+  @@map("prices")
+}
+
+model PriceHistory {
+  id             String   @id @default(cuid())
+  versionId      String
+  priceId        String?
+  priceType      String
+  previousAmount Int?
+  newAmount      Int
+  difference     Int?
+  changedAt      DateTime @default(now())
+  sourceName     String?
+  sourceId       String?
+  approvedBy     String?
+  observation    String?
+  version        Version  @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  price          Price?   @relation(fields: [priceId], references: [id])
+
+  @@map("price_history")
+}
+
+model CommercialCampaign {
+  id              String        @id @default(cuid())
+  brandId         String?
+  modelId         String?
+  versionId       String?
+  title           String
+  promotionType   String
+  condition       String?
+  exception       String?
+  benefit         String?
+  startDate       DateTime?
+  endDate         DateTime?
+  status          String        @default("BORRADOR")
+  sourceId        String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  model           VehicleModel? @relation(fields: [modelId], references: [id])
+  version         Version?      @relation(fields: [versionId], references: [id])
+
+  @@map("commercial_campaigns")
+}
+
+model Bonus {
+  id          String   @id @default(cuid())
+  brandId     String?
+  modelId     String?
+  versionId   String?
+  name        String
+  amount      Int?
+  conditions  String?
+  startDate   DateTime?
+  endDate     DateTime?
+  status      String   @default("BORRADOR")
+  sourceId    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  version     Version? @relation(fields: [versionId], references: [id])
+
+  @@map("bonuses")
+}
+
+model Benefit {
+  id          String   @id @default(cuid())
+  brandId     String?
+  modelId     String?
+  versionId   String?
+  name        String
+  appliesTo   String?
+  exception   String?
+  conditions  String?
+  startDate   DateTime?
+  endDate     DateTime?
+  status      String   @default("BORRADOR")
+  sourceId    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  version     Version? @relation(fields: [versionId], references: [id])
+
+  @@map("benefits")
+}
+
+model Document {
+  id             String           @id @default(cuid())
+  brandId        String?
+  type           String
+  originalName   String
+  storedPath     String?
+  mimeType       String?
+  extension      String?
+  textSource     String?
+  receivedAt     DateTime         @default(now())
+  status         String           @default("DETECTADO")
+  brand          Brand?           @relation(fields: [brandId], references: [id])
+  imports        DocumentImport[]
+  prices         Price[]
+
+  @@map("documents")
+}
+
+model DocumentImport {
+  id             String               @id @default(cuid())
+  documentId     String?
+  importType     String
+  status         String               @default("EN_REVISION")
+  detectedBrand  String?
+  detectedMonth  String?
+  summaryJson    String?
+  createdAt      DateTime             @default(now())
+  document       Document?            @relation(fields: [documentId], references: [id])
+  extractions    DocumentExtraction[]
+
+  @@map("document_imports")
+}
+
+model DocumentExtraction {
+  id          String         @id @default(cuid())
+  importId    String
+  category    String
+  rawText     String
+  payloadJson String?
+  confidence  String         @default("REQUIERE_REVISION")
+  status      String         @default("DETECTADO")
+  import      DocumentImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@map("document_extractions")
+}
+
+model Update {
+  id          String       @id @default(cuid())
+  title       String
+  sourceType  String
+  documentId  String?
+  rawText     String?
+  status      String       @default("DETECTADO")
+  createdAt   DateTime     @default(now())
+  approvedAt  DateTime?
+  approvedBy  String?
+  items       UpdateItem[]
+  prices      Price[]
+
+  @@map("updates")
+}
+
+model UpdateItem {
+  id              String   @id @default(cuid())
+  updateId        String
+  category        String
+  brandName       String?
+  modelName       String?
+  versionName     String?
+  fieldName       String?
+  previousValue   String?
+  proposedValue   String?
+  amount          Int?
+  rawText         String
+  confidence      String   @default("REQUIERE_REVISION")
+  status          String   @default("DETECTADO")
+  ambiguityReason String?
+  payloadJson     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  update          Update   @relation(fields: [updateId], references: [id], onDelete: Cascade)
+
+  @@map("update_items")
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  entityType    String
+  entityId      String?
+  brandName     String?
+  modelName     String?
+  versionName   String?
+  fieldModified String
+  previousValue String?
+  newValue      String?
+  source        String?
+  user          String?
+  observation   String?
+  createdAt     DateTime @default(now())
+
+  @@map("audit_log")
+}
+
+model Acronym {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  meaning     String?
+  description String?
+  source      String   @default("DEFINIDO_MANUALMENTE")
+  status      String   @default("VIGENTE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("acronyms")
+}
+
+model CustomerStatus {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  stage     String?
+  position  Int        @default(0)
+  active    Boolean    @default(true)
+  customers Customer[]
+
+  @@map("customer_statuses")
+}
+
+model CustomerOrigin {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  active    Boolean    @default(true)
+  customers Customer[]
+
+  @@map("customer_origins")
+}
+
+model Customer {
+  id                 String             @id @default(cuid())
+  firstName          String
+  lastName           String?
+  rut                String?
+  phone              String?
+  whatsapp           String?
+  email              String?
+  birthDate          DateTime?
+  address            String?
+  commune            String?
+  city               String?
+  region             String?
+  rutLookupConsentAt DateTime?
+  rutLookupSource    String?
+  statusId           String?
+  originId           String?
+  interestedBrand    String?
+  interestedModel    String?
+  interestedVersion  String?
+  budget             Int?
+  purchaseType       String?
+  currentVehicle     String?
+  currentPlate       String?
+  notes              String?
+  lastContactAt      DateTime?
+  nextActionType     String?
+  nextActionAt       DateTime?
+  nextActionNote     String?
+  nextActionPriority String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  status             CustomerStatus?    @relation(fields: [statusId], references: [id])
+  origin             CustomerOrigin?    @relation(fields: [originId], references: [id])
+  vehicles           CustomerVehicle[]
+  interests          CustomerInterest[]
+  activities         Activity[]
+  reminders          Reminder[]
+  credits            CreditContract[]
+  quotes             Quote[]
+  sales              Sale[]
+
+  @@index([firstName, lastName, rut, phone, email])
+  @@map("customers")
+}
+
+model CustomerVehicle {
+  id              String    @id @default(cuid())
+  customerId      String
+  brand           String
+  model           String
+  version         String?
+  year            String?
+  plate           String?
+  vin             String?
+  purchaseDate    DateTime?
+  deliveryDate    DateTime?
+  purchasePrice   Int?
+  financingType   String?
+  executive       String?
+  observations    String?
+  createdAt       DateTime  @default(now())
+  customer        Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("customer_vehicles")
+}
+
+model CustomerInterest {
+  id          String    @id @default(cuid())
+  customerId  String
+  brandId     String?
+  modelId     String?
+  versionId   String?
+  brandName   String?
+  modelName   String?
+  versionName String?
+  source      String?
+  createdAt   DateTime  @default(now())
+  customer    Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  version     Version?  @relation(fields: [versionId], references: [id])
+
+  @@map("customer_interests")
+}
+
+model Activity {
+  id          String    @id @default(cuid())
+  customerId  String
+  type        String
+  description String
+  activityAt  DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+  customer    Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("activities")
+}
+
+model Reminder {
+  id                     String    @id @default(cuid())
+  customerId             String?
+  type                   String
+  description            String
+  dueAt                  DateTime
+  priority               String    @default("NORMAL")
+  status                 String    @default("PENDIENTE")
+  lastNotificationAt     DateTime?
+  snoozedUntil           DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  customer               Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([dueAt, status])
+  @@map("reminders")
+}
+
+model CreditContract {
+  id                  String    @id @default(cuid())
+  customerId          String
+  financialEntity     String?
+  purchaseDate        DateTime?
+  creditStartDate     DateTime?
+  installments        Int?
+  firstInstallmentDate DateTime?
+  lastInstallmentDate DateTime?
+  endDateSource       String?
+  financedAmount      Int?
+  downPayment         Int?
+  installmentAmount   Int?
+  rate                String?
+  cae                 String?
+  creditType          String?
+  observations        String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  customer            Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("credit_contracts")
+}
+
+model Quote {
+  id             String      @id @default(cuid())
+  customerId     String?
+  title          String
+  status         String      @default("BORRADOR")
+  snapshotJson   String
+  totalAmount    Int?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  customer       Customer?   @relation(fields: [customerId], references: [id])
+  items          QuoteItem[]
+
+  @@map("quotes")
+}
+
+model QuoteItem {
+  id          String   @id @default(cuid())
+  quoteId     String
+  versionId   String?
+  brandName   String
+  modelName   String
+  versionName String
+  priceUsed   Int?
+  bonusUsed   Int?
+  conditions  String?
+  quote       Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  version     Version? @relation(fields: [versionId], references: [id])
+
+  @@map("quote_items")
+}
+
+model Sale {
+  id            String    @id @default(cuid())
+  customerId    String
+  quoteId       String?
+  brandName     String
+  modelName     String
+  versionName   String?
+  agreedPrice   Int?
+  saleDate      DateTime  @default(now())
+  status        String    @default("VENDIDO")
+  createdAt     DateTime  @default(now())
+  customer      Customer  @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@map("sales")
+}
+
+model Delivery {
+  id          String   @id @default(cuid())
+  saleId      String?
+  customerId  String?
+  plate       String?
+  deliveryAt  DateTime?
+  status      String   @default("PROGRAMADA")
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@map("deliveries")
+}
+
+model NotificationSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  enabled   Boolean  @default(true)
+  configJson String?
+  updatedAt DateTime @updatedAt
+
+  @@map("notification_settings")
+}
+
+model NotificationHistory {
+  id          String   @id @default(cuid())
+  channel     String
+  eventType   String
+  entityType  String?
+  entityId    String?
+  message     String
+  status      String
+  sentAt      DateTime @default(now())
+  error       String?
+
+  @@map("notification_history")
+}
+
+model StudyQuestion {
+  id             String   @id @default(cuid())
+  category       String
+  prompt         String
+  answer         String
+  explanation    String?
+  source         String?
+  status         String   @default("VIGENTE")
+  createdAt      DateTime @default(now())
+  progress       StudyProgress[]
+
+  @@map("study_questions")
+}
+
+model StudyProgress {
+  id             String        @id @default(cuid())
+  questionId     String
+  correctCount   Int           @default(0)
+  wrongCount     Int           @default(0)
+  review         Boolean       @default(false)
+  updatedAt      DateTime      @updatedAt
+  question       StudyQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("study_progress")
+}
