@@ -49,5 +49,6 @@ Crear el commit inicial en Git (`git commit`) y proceder con la configuración d
 
 ### Punto de restauración
 * **Nombre del commit:** `feat: inicializacion de bitacora y control de versiones local`
-* **Hash del commit:** (Se generará al ejecutar el primer commit)
+* **Hash del commit:** `1f933889d2650abbc5cb17044c0cce6e96bffb51`
+
 
