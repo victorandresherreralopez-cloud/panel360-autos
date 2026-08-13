@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  AlertTriangle,
   BadgeDollarSign,
   Calculator,
   CheckCircle2,
@@ -167,20 +168,25 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
         }
       }
 
+      // HARD FILTERING (Filtros Obligatorios)
+      let hardFiltered = false;
+      const hardFilterReasons: string[] = [];
+
+      // 1. Carrocería / Segmento Obligatorio
       if (segment && segment !== "Indiferente") {
         const segLower = normalizeText(segment);
         let segmentMatch = false;
 
         if (segLower === "pickup") {
-          segmentMatch = includesAny(haystack, ["pickup", "pick up", "pick-up", "camioneta", "cabina", "pozo", "pozu"]);
+          segmentMatch = includesAny(haystack, ["pickup", "pick up", "pick-up", "camioneta", "cabina", "poer", "wingle", "hunter", "d1", "truck"]);
         } else if (segLower === "suv") {
-          segmentMatch = includesAny(haystack, ["suv", "crossover"]) && !includesAny(haystack, ["pickup", "pick up", "camioneta"]);
+          segmentMatch = includesAny(haystack, ["suv", "crossover"]) && !includesAny(haystack, ["pickup", "pick up", "camioneta", "truck"]);
         } else if (segLower === "sedan") {
           segmentMatch = includesAny(haystack, ["sedan", "sedán"]);
         } else if (segLower === "hatchback") {
           segmentMatch = includesAny(haystack, ["hatchback", "hb"]);
         } else if (segLower === "citycar") {
-          segmentMatch = includesAny(haystack, ["citycar", "city car", "compacto"]);
+          segmentMatch = includesAny(haystack, ["citycar", "city car", "alto", "celerio"]);
         } else if (segLower === "comercial") {
           segmentMatch = includesAny(haystack, ["furgon", "van", "comercial", "cargo"]);
         } else {
@@ -188,101 +194,71 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
         }
 
         if (segmentMatch) {
-          score += 40;
-          addReason(reasons, `busca ${segment.toLowerCase()}`);
+          reasons.push(`✅ Carrocería: ${segment}`);
         } else {
-          score -= 500; // Penalización severa para no mostrar SUVs si pidió Pickup
+          hardFiltered = true;
+          hardFilterReasons.push(`No es ${segment}`);
         }
       }
 
-      if (fuel && fuel !== "Indiferente") {
-        if (haystack.includes(normalizeText(fuel))) {
-          score += 15;
-          addReason(reasons, `combustible ${fuel.toLowerCase()}`);
+      // 2. Presupuesto Máximo Obligatorio
+      if (budget && price) {
+        if (price <= budget) {
+          reasons.push(`✅ Precio considerado: ${formatCLP(price)} (Dentro del presupuesto de ${formatCLP(budget)})`);
         } else {
-          score -= 20;
+          hardFiltered = true;
+          hardFilterReasons.push(`Supera el presupuesto por ${formatCLP(price - budget)}`);
         }
       }
 
+      // 3. Transmisión Obligatoria
       if (box && box !== "Indiferente") {
         const wantsAutomatic = normalizeText(box).includes("automat");
         const isAutomatic = includesAny(haystack, ["at", "cvt", "dct", "amt", "automatica", "aut"]);
         const isManual = includesAny(haystack, ["mt", "manual", "mecanica", "mecanico"]);
 
         const matchesBox = wantsAutomatic ? isAutomatic : isManual && !isAutomatic;
-
         if (matchesBox) {
-          score += 35;
-          addReason(reasons, `caja ${box.toLowerCase()}`);
+          reasons.push(`✅ Transmisión: ${box}`);
         } else {
-          score -= 500; // Penalización severa para no mostrar manuales si pidió automática
+          hardFiltered = true;
+          hardFilterReasons.push(`No es caja ${box}`);
         }
       }
 
-      if (traction && traction !== "Indiferente") {
-        if (haystack.includes(normalizeText(traction))) {
-          score += 15;
-          addReason(reasons, `traccion ${traction}`);
+      // 4. Tracción Obligatoria (si exige 4WD o AWD)
+      if (traction && (traction === "4WD" || traction === "AWD")) {
+        const has4x4 = includesAny(haystack, ["4wd", "awd", "4x4"]);
+        if (has4x4) {
+          reasons.push(`✅ Tracción: ${traction}`);
         } else {
-          score -= traction === "4WD" || traction === "AWD" ? 25 : 10;
+          hardFiltered = true;
+          hardFilterReasons.push(`No posee tracción ${traction}`);
         }
       }
 
-      if (use === "Ciudad") {
-        if (includesAny(haystack, ["citycar", "hatchback", "sedan", "hibrido", "electrico", "cvt", "automatica"])) score += 12;
-        addReason(reasons, "uso urbano y maniobrabilidad diaria");
-      }
-      if (use === "Familia") {
-        if (includesAny(haystack, ["suv", "airbags", "adas", "isofix", "camara", "sensores", "climatizador"])) score += 14;
-        addReason(reasons, "prioriza comodidad y seguridad familiar");
-      }
-      if (use === "Carretera") {
-        if (includesAny(haystack, ["crucero", "adas", "turbo", "diesel", "awd", "hibrido"])) score += 12;
-        addReason(reasons, "debe sentirse estable en carretera");
-      }
-      if (use === "Trabajo") {
-        if (includesAny(haystack, ["pickup", "comercial", "diesel", "carga", "truck", "4x4"])) score += 16;
-        addReason(reasons, "necesita rendimiento para trabajo");
-      }
-      if (use === "Campo" || use === "4x4") {
-        if (includesAny(haystack, ["4wd", "awd", "pickup", "diesel", "4x4"])) score += 16;
-        else warnings.push("Revisar si la traccion cumple el uso fuera de ciudad.");
-        addReason(reasons, "requiere mejor traccion y despeje");
-      }
-      if (use === "Mixto") {
-        if (includesAny(haystack, ["suv", "hatchback", "pickup", "automatica", "hibrido"])) score += 8;
-        addReason(reasons, "sirve para uso mixto sin cerrar alternativas");
+      // SCORING DE PREFERENCIAS (para los vehículos que pasan)
+      if (fuel && fuel !== "Indiferente" && haystack.includes(normalizeText(fuel))) {
+        score += 15;
+        reasons.push(`✅ Combustible: ${fuel}`);
       }
 
-      if (familySize === "5 o mas") {
-        if (includesAny(haystack, ["5", "6", "7", "suv", "cx-90", "h7", "tank"])) score += 10;
-        else warnings.push("Confirmar espacio real para pasajeros.");
-      }
-      if (familySize === "Carga/herramientas") {
-        if (includesAny(haystack, ["pickup", "carga", "cargo", "truck", "comercial"])) score += 12;
-        else warnings.push("Confirmar volumen de carga antes de ofrecer.");
-      }
+      if (use === "Ciudad" && includesAny(haystack, ["citycar", "hatchback", "sedan", "hibrido", "electrico", "cvt", "automatica"])) score += 12;
+      if (use === "Familia" && includesAny(haystack, ["suv", "airbags", "adas", "isofix", "camara", "sensores", "climatizador"])) score += 14;
+      if (use === "Carretera" && includesAny(haystack, ["crucero", "adas", "turbo", "diesel", "awd", "hibrido"])) score += 12;
+      if (use === "Trabajo" && includesAny(haystack, ["pickup", "comercial", "diesel", "carga", "truck", "4x4"])) score += 16;
+      if ((use === "Campo" || use === "4x4") && includesAny(haystack, ["4wd", "awd", "pickup", "diesel", "4x4"])) score += 16;
 
-      if (priority === "Precio") {
-        if (detectedBonus > 0) score += 12;
-        if (budget && price && price <= budget * 0.92) score += 8;
-        addReason(reasons, "permite defender precio y bono");
-      }
-      if (priority === "Economia") {
-        if (includesAny(haystack, ["hibrido", "hybrid", "electrico", "diesel", "consumo"])) score += 14;
-        addReason(reasons, "argumento de economia de uso");
-      }
-      if (priority === "Equipamiento") {
-        if (version.equipmentSummary || includesAny(haystack, ["pantalla", "techo", "camara", "sensores", "carplay", "android"])) score += 14;
-        addReason(reasons, "tiene elementos para mostrar equipamiento");
-      }
-      if (priority === "Seguridad") {
-        if (version.safetySummary || includesAny(haystack, ["airbags", "adas", "camara", "sensores", "crucero"])) score += 14;
-        addReason(reasons, "puedes vender seguridad con respaldo");
-      }
-      if (priority === "Espacio") {
-        if (includesAny(haystack, ["suv", "pickup", "cargo", "maletero", "pasajeros"])) score += 14;
-        addReason(reasons, "calza con necesidad de espacio");
+      if (familySize === "5 o mas" && includesAny(haystack, ["5", "6", "7", "suv", "cx-90", "h7", "tank"])) score += 10;
+      if (familySize === "Carga/herramientas" && includesAny(haystack, ["pickup", "carga", "cargo", "truck", "comercial"])) score += 12;
+
+      if (priority === "Precio" && detectedBonus > 0) score += 12;
+      if (priority === "Economia" && includesAny(haystack, ["hibrido", "hybrid", "electrico", "diesel", "consumo"])) score += 14;
+      if (priority === "Equipamiento" && (version.equipmentSummary || includesAny(haystack, ["pantalla", "techo", "camara", "sensores", "carplay", "android"]))) score += 14;
+      if (priority === "Seguridad" && (version.safetySummary || includesAny(haystack, ["airbags", "adas", "camara", "sensores", "crucero"]))) score += 14;
+      if (priority === "Espacio" && includesAny(haystack, ["7", "6", "suv", "maletero", "espacio", "pickup"])) {
+        score += 14;
+        reasons.push("✅ Calza con necesidad de espacio");
       }
       if (priority === "Potencia") {
         if (version.power || includesAny(haystack, ["turbo", "2.0", "2.4", "2.5", "3.3"])) score += 12;
@@ -314,21 +290,27 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
         listPrice,
         detectedBonus,
         score,
+        hardFiltered,
+        hardFilterReasons,
         fit: clamp(Math.round(score), 0, 100),
-        reasons: reasons.slice(0, 4),
+        reasons: reasons.slice(0, 5),
         warnings: warnings.slice(0, 3),
         aids
       };
-    })
-    .filter((item) => {
-      if (!item.price) return false;
-      if (!budget) return item.score > 10;
-      return item.price <= budget * 1.12;
-    })
-    .sort((a, b) => b.score - a.score || (a.price ?? Number.MAX_SAFE_INTEGER) - (b.price ?? Number.MAX_SAFE_INTEGER))
+    });
+
+  const compliantVehicles = scored
+    .filter((item) => item.price && !item.hardFiltered)
+    .sort((a, b) => b.score - a.score || (a.price ?? Number.MAX_SAFE_INTEGER) - (b.price ?? Number.MAX_SAFE_INTEGER));
+
+  const alternativeVehicles = scored
+    .filter((item) => item.price && item.hardFiltered)
+    .sort((a, b) => (a.price ?? 0) - (b.price ?? 0))
     .slice(0, 3);
 
-  const top = scored[0];
+  const displayVehicles = compliantVehicles.length ? compliantVehicles.slice(0, 3) : [];
+  const top = displayVehicles[0] ?? alternativeVehicles[0];
+
   const compareHref = scored.length >= 2 ? buildCompareHref(scored.map((item) => item.version.id)) : "/comparador";
   const currentPath = `/cliente-frente-a-mi?${new URLSearchParams(
     Object.entries(searchParams).flatMap(([key, value]) => {
@@ -597,69 +579,130 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
             </Panel>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-3">
-            {scored.map((item, index) => {
-              const label = `${item.version.brand.name} ${item.version.model.name} ${item.version.name}`;
-              return (
-                <Panel key={item.version.id}>
-                  <div className="flex items-center justify-between gap-3">
-                    <StatusPill tone={index === 0 ? "good" : item.price && budget && item.price > budget ? "warn" : "neutral"}>
-                      {index === 0 ? "Ofrecer primero" : index === 1 ? "Comparar contra esta" : "Opcion para subir"}
-                    </StatusPill>
-                    <div className="flex items-center gap-1 text-sm font-black text-signal">
-                      <Gauge className="h-4 w-4" aria-hidden="true" />
-                      {item.fit}%
-                    </div>
-                  </div>
-                  <h2 className="mt-4 text-xl font-black text-ink">{item.version.brand.name} {item.version.model.name}</h2>
-                  <p className="mt-1 text-sm font-black text-graphite">{item.version.name}</p>
-                  <p className="mt-4 text-2xl font-black text-ink">{formatCLP(item.price)}</p>
-                  {item.detectedBonus ? <p className="mt-1 text-sm font-black text-signal">Bono/precio campana: {formatCLP(item.detectedBonus)}</p> : null}
+          {/* Seccion 1: Vehiculos que cumplen 100% de Filtros Obligatorios */}
+          {compliantVehicles.length === 0 ? (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-5 shadow-sm">
+              <div className="flex items-center gap-3 text-rose-800">
+                <AlertTriangle className="h-6 w-6 shrink-0" aria-hidden="true" />
+                <div>
+                  <h3 className="text-base font-black">No encontramos vehículos que cumplan el 100% de los filtros obligatorios.</h3>
+                  <p className="mt-1 text-sm font-semibold leading-6 text-rose-700">
+                    No existen {segment ? `${segment}s` : "vehículos"} dentro de un presupuesto máximo de {formatCLP(budget)} {box && box !== "Indiferente" ? `con caja ${box}` : ""}. A continuación te presentamos las <strong>alternativas más cercanas</strong> que superan el presupuesto o varían ligeramente el criterio.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
-                  <div className="mt-4 grid gap-2">
-                    {item.reasons.map((reason) => (
-                      <p key={reason} className="flex gap-2 text-sm font-semibold leading-5 text-graphite">
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-signal" aria-hidden="true" />
-                        {reason}
-                      </p>
-                    ))}
-                  </div>
+          {/* Grid de Vehiculos Recomendados (Cumplimiento 100%) */}
+          {compliantVehicles.length > 0 ? (
+            <div>
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-lg font-black text-ink">
+                  Vehículos Recomendados ({compliantVehicles.length} cumplen 100% tus criterios)
+                </h3>
+              </div>
+              <div className="grid gap-4 lg:grid-cols-3">
+                {compliantVehicles.slice(0, 3).map((item, index) => {
+                  const label = `${item.version.brand.name} ${item.version.model.name} ${item.version.name}`;
+                  return (
+                    <Panel key={item.version.id} className="border-2 border-emerald-500/20 shadow-panel">
+                      <div className="flex items-center justify-between gap-3">
+                        <StatusPill tone="good">
+                          {index === 0 ? "🏆 Mejor Opción" : index === 1 ? "Opción 2" : "Opción 3"}
+                        </StatusPill>
+                        <div className="flex items-center gap-1 text-sm font-black text-signal">
+                          <Gauge className="h-4 w-4" aria-hidden="true" />
+                          {item.fit}% Calce
+                        </div>
+                      </div>
+                      <h2 className="mt-4 text-xl font-black text-ink">{item.version.brand.name} {item.version.model.name}</h2>
+                      <p className="mt-1 text-sm font-black text-graphite">{item.version.name}</p>
+                      <p className="mt-4 text-2xl font-black text-ink">{formatCLP(item.price)}</p>
+                      {item.detectedBonus ? <p className="mt-1 text-sm font-black text-signal">Bono marca / campaña: {formatCLP(item.detectedBonus)}</p> : null}
 
-                  <div className="mt-4 rounded-lg bg-mist p-3">
-                    <p className="flex items-center gap-2 text-xs font-black uppercase text-steel">
-                      <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-                      Argumentos
-                    </p>
-                    <p className="mt-2 text-sm font-semibold leading-6 text-graphite">
-                      Equipamiento: {missing(item.version.equipmentSummary)}. Seguridad: {missing(item.version.safetySummary)}.
-                    </p>
-                  </div>
+                      <div className="mt-4 grid gap-2">
+                        {item.reasons.map((reason) => (
+                          <p key={reason} className="flex gap-2 text-sm font-semibold leading-5 text-graphite">
+                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
+                            {reason}
+                          </p>
+                        ))}
+                      </div>
 
-                  {item.warnings.length ? (
-                    <div className="mt-3 grid gap-2">
-                      {item.warnings.map((warning) => (
-                        <p key={warning} className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs font-bold text-amber-800">
-                          {warning}
+                      <div className="mt-4 rounded-lg bg-mist p-3">
+                        <p className="flex items-center gap-2 text-xs font-black uppercase text-steel">
+                          <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                          Detalles Técnicos
                         </p>
-                      ))}
-                    </div>
-                  ) : null}
+                        <p className="mt-2 text-sm font-semibold leading-6 text-graphite">
+                          Transmisión: {missing(item.version.transmission)} | Motor: {missing(item.version.engine)} | Tracción: {missing(item.version.traction)}
+                        </p>
+                      </div>
 
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <Link className="btn btn-primary" href={`/cotizador?versionId=${item.version.id}${customerId ? `&customerId=${customerId}` : ""}`}>
-                      Cotizar
-                    </Link>
-                    <Link className="btn btn-secondary" href={`/rentabilidad?versionId=${item.version.id}`}>
-                      Margen
-                    </Link>
-                    <Link className="btn btn-secondary" href={`/buscar?q=${encodeURIComponent(label)}`}>
-                      Ver datos
-                    </Link>
-                  </div>
-                </Panel>
-              );
-            })}
-          </div>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <Link className="btn btn-primary" href={`/cotizador?versionId=${item.version.id}${customerId ? `&customerId=${customerId}` : ""}`}>
+                          Cotizar esta
+                        </Link>
+                        <Link className="btn btn-secondary" href={`/rentabilidad?versionId=${item.version.id}`}>
+                          Margen
+                        </Link>
+                        <Link className="btn btn-secondary" href={`/buscar?q=${encodeURIComponent(label)}`}>
+                          Ver datos
+                        </Link>
+                      </div>
+                    </Panel>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          {/* Seccion 2: Alternativas Cercanas (Si aplica) */}
+          {alternativeVehicles.length > 0 ? (
+            <div className="mt-6">
+              <div className="mb-3">
+                <h3 className="text-lg font-black text-amber-900 flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-amber-600" aria-hidden="true" />
+                  Alternativas Cercanas {compliantVehicles.length === 0 ? "(Ver si el cliente puede flexibilizar presupuesto o criterio)" : "(Opciones fuera de presupuesto)"}
+                </h3>
+              </div>
+              <div className="grid gap-4 lg:grid-cols-3">
+                {alternativeVehicles.slice(0, 3).map((item) => {
+                  const label = `${item.version.brand.name} ${item.version.model.name} ${item.version.name}`;
+                  return (
+                    <Panel key={item.version.id} className="border border-amber-300 bg-amber-50/30">
+                      <div className="flex items-center justify-between gap-3">
+                        <StatusPill tone="warn">Alternativa Cercana</StatusPill>
+                        <span className="text-xs font-black text-amber-800">Supera / Desvía</span>
+                      </div>
+                      <h2 className="mt-4 text-xl font-black text-ink">{item.version.brand.name} {item.version.model.name}</h2>
+                      <p className="mt-1 text-sm font-black text-graphite">{item.version.name}</p>
+                      <p className="mt-4 text-2xl font-black text-ink">{formatCLP(item.price)}</p>
+
+                      <div className="mt-3 grid gap-1.5">
+                        {item.hardFilterReasons.map((reason) => (
+                          <p key={reason} className="rounded bg-amber-100 p-2 text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                            <AlertTriangle className="h-3.5 w-3.5 text-amber-700 shrink-0" aria-hidden="true" />
+                            {reason}
+                          </p>
+                        ))}
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <Link className="btn btn-secondary" href={`/cotizador?versionId=${item.version.id}${customerId ? `&customerId=${customerId}` : ""}`}>
+                          Cotizar alternativa
+                        </Link>
+                        <Link className="btn btn-secondary" href={`/buscar?q=${encodeURIComponent(label)}`}>
+                          Ver datos
+                        </Link>
+                      </div>
+                    </Panel>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
         </>
       ) : (
         <EmptyState

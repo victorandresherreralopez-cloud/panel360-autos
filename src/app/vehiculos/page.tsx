@@ -52,10 +52,10 @@ export default async function VehiclesPage({ searchParams }: { searchParams?: { 
     models: brand.models.map((model) => {
       const prices = model.versions.flatMap((version) => version.prices.filter((price) => price.priceType === "LIST"));
       const fromPrice = prices.length ? Math.min(...prices.map((price) => price.amount)) : null;
-      const expectedName = documentKey(`Ficha tecnica Derco ${brand.name} ${model.name}`);
+      const normModel = normalizeText(model.name);
       const modelSheet =
-        technicalSheets.find((sheet) => sheet.brandId === brand.id && documentBaseKey(sheet.originalName) === expectedName) ??
-        technicalSheets.find((sheet) => sheet.brandId === brand.id && documentBaseKey(sheet.originalName).includes(documentKey(model.name))) ??
+        technicalSheets.find((sheet) => sheet.brandId === brand.id && normalizeText(sheet.originalName).includes(normModel)) ??
+        technicalSheets.find((sheet) => normalizeText(sheet.originalName).includes(normModel)) ??
         null;
       const modelAidAlerts = commercialAidAlerts.filter((alert) => commercialAidMatchesVehicle(alert, brand.name, model.name)).slice(0, 3);
 
