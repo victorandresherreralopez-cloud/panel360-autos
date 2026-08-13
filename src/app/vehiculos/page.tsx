@@ -39,8 +39,8 @@ export default async function VehiclesPage({ searchParams }: { searchParams?: { 
       orderBy: { name: "asc" }
     }),
     prisma.document.findMany({
-      where: { type: "FICHA TECNICA DERCO", status: "VIGENTE" },
-      select: { id: true, brandId: true, originalName: true },
+      where: { status: { in: ["VIGENTE", "DETECTADO"] } },
+      select: { id: true, brandId: true, originalName: true, type: true },
       orderBy: { originalName: "asc" }
     }),
     getCommercialAidAlerts(300)
@@ -54,6 +54,7 @@ export default async function VehiclesPage({ searchParams }: { searchParams?: { 
       const fromPrice = prices.length ? Math.min(...prices.map((price) => price.amount)) : null;
       const normModel = normalizeText(model.name);
       const modelSheet =
+        (model as any).technicalSheet ??
         technicalSheets.find((sheet) => sheet.brandId === brand.id && normalizeText(sheet.originalName).includes(normModel)) ??
         technicalSheets.find((sheet) => normalizeText(sheet.originalName).includes(normModel)) ??
         null;
@@ -71,7 +72,11 @@ export default async function VehiclesPage({ searchParams }: { searchParams?: { 
         imagePath: model.imagePath,
         status: model.status,
         fromPrice,
-        technicalSheet: modelSheet ? { id: modelSheet.id, originalName: modelSheet.originalName } : null,
+        technicalSheet: {
+          id: modelSheet?.id ?? model.id,
+          originalName: modelSheet?.originalName ?? `Ficha Técnica ${brand.name} ${model.name}`
+        },
+
         aids: modelAidAlerts.map((alert) => ({
           id: alert.id,
           title: alert.title,

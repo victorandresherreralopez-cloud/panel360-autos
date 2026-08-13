@@ -396,10 +396,15 @@ export function VehiclesExplorer({
                           return (
                             <tr key={version.id}>
                               <td className="font-black text-ink">
-                                {version.name}
+                                <div>{version.name}</div>
                                 {breakdown.sharedBonusAlert ? (
-                                  <span className="ml-2 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-300">
+                                  <span className="mt-1 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-900 border border-amber-300">
                                     ⭐ Bono Compartido
+                                  </span>
+                                ) : null}
+                                {breakdown.isCommercialVehicle ? (
+                                  <span className="mt-1 ml-1 inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-900 border border-emerald-300">
+                                    🛻 Pickup / Facturable
                                   </span>
                                 ) : null}
                               </td>
@@ -413,15 +418,45 @@ export function VehiclesExplorer({
                                   <span className="font-bold text-amber-800">Pendiente</span>
                                 )}
                               </td>
-                              <td className="font-bold text-ink">{formatCLP(breakdown.cashPrice)}</td>
-                              <td className="font-black text-emerald-700">{formatCLP(breakdown.financingPrice)}</td>
                               <td>
-                                {breakdown.isCommercialVehicle && breakdown.cashNetPrice ? (
-                                  <span className="font-black text-emerald-700">
-                                    {formatCLP(breakdown.cashNetPrice)} <span className="text-[10px] font-semibold text-steel">+IVA</span>
-                                  </span>
+                                <div className="font-bold text-ink">{formatCLP(breakdown.cashPrice)}</div>
+                                {breakdown.brandBonus > 0 ? (
+                                  <div className="text-[11px] font-semibold text-emerald-700">
+                                    Bono marca: -{formatCLP(breakdown.brandBonus)}
+                                  </div>
+                                ) : null}
+                                {breakdown.estimatedKeyInHandCash ? (
+                                  <div className="text-[10px] text-steel">
+                                    Llave en mano: {formatCLP(breakdown.estimatedKeyInHandCash)}
+                                  </div>
+                                ) : null}
+                              </td>
+                              <td>
+                                <div className="font-black text-emerald-700">{formatCLP(breakdown.financingPrice)}</div>
+                                {breakdown.totalBonus > 0 ? (
+                                  <div className="text-[11px] font-semibold text-emerald-700">
+                                    Bonos totales: -{formatCLP(breakdown.totalBonus)}
+                                  </div>
+                                ) : null}
+                                {breakdown.estimatedKeyInHandFinancing ? (
+                                  <div className="text-[10px] text-steel">
+                                    Llave en mano: {formatCLP(breakdown.estimatedKeyInHandFinancing)}
+                                  </div>
+                                ) : null}
+                              </td>
+                              <td>
+                                {breakdown.cashPrice ? (
+                                  <div>
+                                    <span className="font-black text-slate-800 dark:text-slate-200">
+                                      {formatCLP(Math.round(breakdown.cashPrice / 1.19))}
+                                    </span>
+                                    <span className="ml-1 text-[10px] font-bold text-steel">+IVA</span>
+                                    {breakdown.isCommercialVehicle ? (
+                                      <div className="text-[10px] font-bold text-emerald-700">Recupera IVA (Factura)</div>
+                                    ) : null}
+                                  </div>
                                 ) : (
-                                  <span className="text-xs text-steel">N/A (Pasajeros)</span>
+                                  <span className="text-xs text-steel">N/I</span>
                                 )}
                               </td>
                               <td>
@@ -434,6 +469,7 @@ export function VehiclesExplorer({
                                   </Link>
                                 </div>
                               </td>
+
                             </tr>
                           );
                         })}

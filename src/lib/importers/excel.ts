@@ -1,82 +1,431 @@
+/**
+ * Parser multi-hoja de Excel Comercial — Panel360 Autos
+ *
+ * Soporta TODAS las marcas Derco: GWM, Mazda, Suzuki, Changan, Deepal, DFSK.
+ * Detecta el tipo de cada hoja y usa el parser correcto:
+ *
+ *  PRECIOS      → precio lista, bonos, contado, financiamiento, tasas, campañas por fila
+ *  PATENTE_GRATIS → monto patente contado / crédito por versión + condiciones
+ *  BONO_CIERRE  → aportes CES / marca contado y crédito, restricciones de cabecera
+ *  TASA         → tasas subvencionadas como texto estructurado
+ *  PREVENTA     → igual que PRECIOS pero channel = PREVENTA
+ *  DERCO_CL     → igual que PRECIOS pero channel = DERCO_CL
+ *  CAMPANA      → beneficios adicionales (giftcards, mantenciones, COPEC, etc.)
+ *  DESCONOCIDA  → texto plano para parseTextUpdate
+ */
+
 import * as XLSX from "xlsx";
 import { CONFIDENCE } from "@/lib/constants";
 import { normalizeText } from "@/lib/format";
 import { parseTextUpdate } from "@/lib/importers/text";
 import type { DetectedChange, ImportResult } from "@/lib/importers/types";
 
-function valueToString(value: unknown) {
+// ─── Tipos ────────────────────────────────────────────────────────────────────
+
+type SheetKind =
+  | "PRECIOS"
+  | "PATENTE_GRATIS"
+  | "BONO_CIERRE"
+  | "TASA"
+  | "PREVENTA"
+  | "DERCO_CL"
+  | "CAMPANA"
+  | "DESCONOCIDA";
+
+// ─── Utilidades ───────────────────────────────────────────────────────────────
+
+function valueToString(value: unknown): string {
   if (value === null || value === undefined) return "";
   return String(value).trim();
 }
 
-function moneyFromCell(value: unknown) {
-  if (typeof value === "number") return Math.round(value);
-  return Number.parseInt(valueToString(value).replace(/[^\d-]/g, ""), 10) || undefined;
+function moneyFromCell(value: unknown): number | undefined {
+  if (typeof value === "number" && value > 0) return Math.round(value);
+  const cleaned = valueToString(value).replace(/[^\d]/g, "");
+  const n = Number.parseInt(cleaned, 10);
+  return n > 0 ? n : undefined;
 }
+
+function norm(text: unknown): string {
+  return normalizeText(valueToString(text));
+}
+
+function hasAny(text: string, words: string[]): boolean {
+  return words.some((w) => text.includes(w));
+}
+
+type RowGetter = (...candidates: string[]) => unknown;
+
+function makeGetter(entries: [string, unknown][], normalizedKeys: string[]): RowGetter {
+  return (...candidates: string[]): unknown => {
+    const index = normalizedKeys.findIndex((key) =>
+      candidates.some((c) => key === c || key.startsWith(`${c} `) || key.includes(c))
+    );
+    return index >= 0 ? entries[index][1] : undefined;
+  };
+}
+
+// ─── Deteccion del tipo de hoja ───────────────────────────────────────────────
+
+function detectSheetKind(sheetName: string, firstRowsText: string): SheetKind {
+  const sn = norm(sheetName);
+  const combined = `${sn} ${norm(firstRowsText)}`;
+
+  if (hasAny(combined, ["preventa", "pre-venta", "pre venta"])) return "PREVENTA";
+  if (hasAny(combined, ["dercocenter", "dcr.cl", "derco.cl", "0km", "0 km", "dias 0", "dias cero", "reservando en"])) return "DERCO_CL";
+  if (hasAny(combined, ["patente gratis", "patente gratuita", "permiso circulacion gratis"])) return "PATENTE_GRATIS";
+  if (hasAny(combined, ["bono cierre", "cierre compartido", "bono compartido", "aporte ces", "aporte concesionario", "bono de cierre"])) return "BONO_CIERRE";
+  if (hasAny(combined, ["tasa especial", "tasa subvencionada", "tasa promocional", "tasa preferencial", "tasa 0", "credito especial"])) return "TASA";
+  if (hasAny(combined, ["campana", "campaign", "giftcard", "gift card", "premio", "accesorios gratis", "mantencion gratis", "copec", "bono combustible", "beneficio", "promocion"])) return "CAMPANA";
+  if (hasAny(combined, ["precio", "lista", "precios", "price", "tarifario", "agosto", "julio", "junio", "mayo", "abril", "enero", "febrero", "marzo", "octubre", "noviembre", "diciembre", "septiembre"])) return "PRECIOS";
+
+  return "DESCONOCIDA";
+}
+
+// ─── Parser: hojas de PRECIOS / PREVENTA / DERCO_CL ──────────────────────────
+
+function parseSheetPrecios(
+  sheetName: string,
+  rows: Record<string, unknown>[],
+  channel: "REGULAR" | "DERCO_CL" | "PREVENTA",
+  detectedBrand: string | undefined
+): DetectedChange[] {
+  const changes: DetectedChange[] = [];
+
+  for (const row of rows) {
+    const entries = Object.entries(row);
+    const normalizedKeys = entries.map(([key]) => norm(key));
+    const get = makeGetter(entries, normalizedKeys);
+    const rawText = entries.map(([key, value]) => `${key}: ${valueToString(value)}`).join(" | ");
+
+    const brandName = valueToString(get("marca", "brand", "fabricante")) || detectedBrand || "";
+    const modelName = valueToString(get("modelo", "model", "linea"));
+    const versionName = valueToString(get("version", "variante", "trim", "descripcion sap"));
+
+    const priceList = moneyFromCell(get("precio lista", "lista", "precio de lista", "precio base", "precio oficial", "precio", "list price"));
+    const bonusAmount = moneyFromCell(get("bonos marca", "bono marca", "bono", "descuento marca"));
+    const bonusName = valueToString(get("nombre bono", "tipo bono")) || (bonusAmount ? "Bono marca" : undefined);
+
+    const cash = moneyFromCell(get("precio contado", "contado", "precio con bono", "p. contado", "precio neto contado"));
+    const financing = moneyFromCell(get("precio financiamiento", "financiamiento", "precio credito", "p. credito", "precio con bono financiamiento"));
+    const bonusFinancing = moneyFromCell(get("bono financiamiento", "bono credito"));
+    const rate = valueToString(get("tasa", "tasa especial", "tasa subvencionada", "tasas subvencionadas"));
+    const promoText = valueToString(get("promociones", "campana", "beneficio adicional"));
+
+    const hasIdentity = Boolean(modelName || versionName);
+
+    if (priceList) {
+      const fieldLabel = channel === "DERCO_CL" ? "Precio Derco.cl"
+        : channel === "PREVENTA" ? "Precio Preventa"
+        : "Precio lista";
+
+      changes.push({
+        category: "PRECIO",
+        brandName: brandName || undefined,
+        modelName: modelName || undefined,
+        versionName: versionName || undefined,
+        fieldName: fieldLabel,
+        proposedValue: String(priceList),
+        amount: priceList,
+        rawText,
+        confidence: hasIdentity ? CONFIDENCE.REVIEW : CONFIDENCE.AMBIGUOUS,
+        ambiguityReason: hasIdentity ? undefined : "Fila con monto sin modelo/version identificable.",
+        payload: { channel, sheetName, bonusName: bonusName ?? null, bonusAmount: bonusAmount ?? null, cash: cash ?? null, financing: financing ?? null, bonusFinancing: bonusFinancing ?? null, rate: rate || null, promoText: promoText || null }
+      });
+    }
+
+    if (cash && cash !== priceList) {
+      changes.push({
+        category: "PRECIO",
+        brandName: brandName || undefined,
+        modelName: modelName || undefined,
+        versionName: versionName || undefined,
+        fieldName: "Precio contado",
+        proposedValue: String(cash),
+        amount: cash,
+        rawText,
+        confidence: hasIdentity ? CONFIDENCE.REVIEW : CONFIDENCE.AMBIGUOUS,
+        payload: { channel, sheetName, bonusName, bonusAmount }
+      });
+    }
+
+    if (financing && financing !== cash) {
+      changes.push({
+        category: "PRECIO",
+        brandName: brandName || undefined,
+        modelName: modelName || undefined,
+        versionName: versionName || undefined,
+        fieldName: "Precio financiamiento",
+        proposedValue: String(financing),
+        amount: financing,
+        rawText,
+        confidence: hasIdentity ? CONFIDENCE.REVIEW : CONFIDENCE.AMBIGUOUS,
+        payload: { channel, sheetName, bonusFinancing }
+      });
+    }
+
+    if (bonusAmount) {
+      changes.push({
+        category: "BONO",
+        brandName: brandName || undefined,
+        modelName: modelName || undefined,
+        versionName: versionName || undefined,
+        fieldName: bonusName || "Bono marca",
+        proposedValue: String(bonusAmount),
+        amount: bonusAmount,
+        rawText,
+        confidence: hasIdentity ? CONFIDENCE.REVIEW : CONFIDENCE.AMBIGUOUS,
+        payload: { offerType: "BONO_MARCA", channel, sheetName, bonusName: bonusName ?? null, bonusFinancing: bonusFinancing ?? null, rate: rate || null }
+      });
+    }
+
+    if (promoText && hasAny(norm(promoText), ["giftcard", "gift card", "copec", "mantencion", "premio", "accesorio"])) {
+      changes.push({
+        category: "CAMPAÑA",
+        brandName: brandName || undefined,
+        modelName: modelName || undefined,
+        versionName: versionName || undefined,
+        fieldName: "campana en fila de precios",
+        proposedValue: promoText,
+        rawText,
+        confidence: CONFIDENCE.REVIEW,
+        payload: { offerType: "CAMPANA", channel, sheetName }
+      });
+    }
+  }
+
+  return changes;
+}
+
+// ─── Parser: hoja PATENTE_GRATIS ──────────────────────────────────────────────
+
+function parseSheetPatenteGratis(
+  sheetName: string,
+  rows: Record<string, unknown>[]
+): DetectedChange[] {
+  const changes: DetectedChange[] = [];
+  const conditionRows: string[] = [];
+
+  for (const row of rows) {
+    const entries = Object.entries(row);
+    const normalizedKeys = entries.map(([key]) => norm(key));
+    const get = makeGetter(entries, normalizedKeys);
+    const rawText = entries.map(([key, value]) => `${key}: ${valueToString(value)}`).join(" | ");
+
+    const modelVersionRaw = valueToString(get("modelo", "modelo - version", "modelo-version", "version"));
+    const amountCash = moneyFromCell(get("patente contado", "contado", "cash"));
+    const amountCredit = moneyFromCell(get("patente credito", "credito"));
+
+    if (!amountCash && !amountCredit) {
+      const texts = entries.map(([, v]) => valueToString(v)).filter(Boolean).join(" ");
+      if (texts.length > 3) conditionRows.push(texts);
+      continue;
+    }
+
+    if (!modelVersionRaw) continue;
+
+    changes.push({
+      category: "PATENTE",
+      modelName: modelVersionRaw,
+      fieldName: "Patente gratis",
+      proposedValue: amountCash ? String(amountCash) : String(amountCredit),
+      amount: amountCash ?? amountCredit,
+      rawText,
+      confidence: CONFIDENCE.REVIEW,
+      payload: {
+        offerType: "PATENTE_GRATIS",
+        sheetName,
+        amountCash: amountCash ?? null,
+        amountCredit: amountCredit ?? null,
+        hasIva: true,
+        conditions: conditionRows.join("; ") || null,
+        compatibleWith: "BONO_CIERRE_COMPARTIDO, TASA_ESPECIAL, CAMPANAS"
+      }
+    });
+  }
+
+  return changes;
+}
+
+// ─── Parser: hoja BONO_CIERRE ─────────────────────────────────────────────────
+
+function parseSheetBonoCierre(
+  sheetName: string,
+  rows: Record<string, unknown>[],
+  headerRestrictionsText: string
+): DetectedChange[] {
+  const changes: DetectedChange[] = [];
+
+  for (const row of rows) {
+    const entries = Object.entries(row);
+    const normalizedKeys = entries.map(([key]) => norm(key));
+    const get = makeGetter(entries, normalizedKeys);
+    const rawText = entries.map(([key, value]) => `${key}: ${valueToString(value)}`).join(" | ");
+
+    const modelName = valueToString(get("modelo", "model"));
+    const versionName = valueToString(get("version", "versiones", "aplica a"));
+    const aporteCESCash = moneyFromCell(get("aporte ces", "ces contado", "aporte concesionario"));
+    const aporteMarcaCash = moneyFromCell(get("aporte marca", "marca contado", "aporte fabricante"));
+    const totalCash = moneyFromCell(get("aporte total", "total contado", "total"));
+
+    // Detectar segunda columna de CES/Marca para credito
+    const cesIndices = normalizedKeys.reduce<number[]>((acc, k, i) => { if (k.includes("ces")) acc.push(i); return acc; }, []);
+    const marcaIndices = normalizedKeys.reduce<number[]>((acc, k, i) => { if (k.includes("aporte") && !k.includes("ces") && !k.includes("total")) acc.push(i); return acc; }, []);
+
+    const aporteCESCredit = cesIndices[1] !== undefined ? moneyFromCell(entries[cesIndices[1]][1]) : undefined;
+    const aporteMarcaCredit = marcaIndices[1] !== undefined ? moneyFromCell(entries[marcaIndices[1]][1]) : undefined;
+    const totalCredit = moneyFromCell(get("negocios credito", "credito total"));
+
+    if (!modelName || (!aporteCESCash && !aporteMarcaCash && !totalCash)) continue;
+
+    changes.push({
+      category: "BONO",
+      modelName: modelName || undefined,
+      versionName: versionName || "Todas",
+      fieldName: "Bono Cierre Compartido",
+      proposedValue: String(totalCash ?? (aporteCESCash ?? 0) + (aporteMarcaCash ?? 0)),
+      amount: totalCash ?? (aporteCESCash ?? 0) + (aporteMarcaCash ?? 0),
+      rawText,
+      confidence: CONFIDENCE.REVIEW,
+      payload: {
+        offerType: "BONO_CIERRE_COMPARTIDO",
+        sheetName,
+        paymentType: "AMBOS",
+        aporteCES: aporteCESCash ?? null,
+        aporteMarca: aporteMarcaCash ?? null,
+        amountCash: totalCash ?? null,
+        aporteCESCredit: aporteCESCredit ?? null,
+        aporteMarcaCredit: aporteMarcaCredit ?? null,
+        amountCredit: totalCredit ?? null,
+        hasIva: true,
+        incompatibleWith: headerRestrictionsText || null
+      }
+    });
+  }
+
+  return changes;
+}
+
+// ─── Parser: hoja CAMPANA ─────────────────────────────────────────────────────
+
+function parseSheetCampana(
+  sheetName: string,
+  rows: Record<string, unknown>[]
+): DetectedChange[] {
+  const changes: DetectedChange[] = [];
+
+  for (const row of rows) {
+    const entries = Object.entries(row);
+    const normalizedKeys = entries.map(([key]) => norm(key));
+    const get = makeGetter(entries, normalizedKeys);
+    const rawText = entries.map(([key, value]) => `${key}: ${valueToString(value)}`).join(" | ");
+
+    const modelName = valueToString(get("modelo", "model", "vehiculo", "auto"));
+    const versionName = valueToString(get("version"));
+    const benefitText = valueToString(get("beneficio", "campana", "premio", "giftcard", "descripcion", "detalle"));
+    const amount = moneyFromCell(get("monto", "valor", "amount", "precio"));
+
+    if (!benefitText && !amount) continue;
+
+    const bnorm = norm(benefitText);
+    const offerType = hasAny(bnorm, ["giftcard", "gift card"]) ? "GIFTCARD"
+      : hasAny(bnorm, ["mantencion"]) ? "MANTENCION"
+      : hasAny(bnorm, ["copec", "bencina", "combustible"]) ? "COPEC"
+      : "CAMPANA";
+
+    changes.push({
+      category: "CAMPAÑA",
+      modelName: modelName || undefined,
+      versionName: versionName || undefined,
+      fieldName: "Campana adicional",
+      proposedValue: benefitText || String(amount),
+      amount: amount,
+      rawText,
+      confidence: CONFIDENCE.REVIEW,
+      payload: { offerType, sheetName, benefitText }
+    });
+  }
+
+  return changes;
+}
+
+// ─── Parser principal ─────────────────────────────────────────────────────────
 
 export async function parseExcel(buffer: Buffer): Promise<ImportResult> {
   const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
   const textParts: string[] = [];
   const changes: DetectedChange[] = [];
+  const sheetSummaries: string[] = [];
 
   for (const sheetName of workbook.SheetNames) {
     const sheet = workbook.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
-    textParts.push(XLSX.utils.sheet_to_csv(sheet));
+    const csvText = XLSX.utils.sheet_to_csv(sheet);
+    textParts.push(`=== Hoja: ${sheetName} ===\n${csvText}`);
 
-    for (const row of rows) {
-      const entries = Object.entries(row);
-      const normalizedKeys = entries.map(([key]) => normalizeText(key));
-      const get = (...candidates: string[]) => {
-        const index = normalizedKeys.findIndex((key) =>
-          candidates.some((candidate) => key === candidate || key.startsWith(`${candidate} `) || key.endsWith(` ${candidate}`))
-        );
-        return index >= 0 ? entries[index][1] : undefined;
-      };
+    const firstRowsText = rows
+      .slice(0, 4)
+      .flatMap((row) => Object.entries(row).map(([k, v]) => `${k} ${valueToString(v)}`))
+      .join(" ");
 
-      const brandName = valueToString(get("marca", "brand"));
-      const modelName = valueToString(get("modelo"));
-      const versionName = valueToString(get("version", "versión"));
-      const priceList = moneyFromCell(get("precio lista", "lista", "precio"));
-      const cash = moneyFromCell(get("contado"));
-      const financing = moneyFromCell(get("financiamiento", "credito", "crédito"));
-      const bonus = moneyFromCell(get("bono"));
+    const sheetKind = detectSheetKind(sheetName, firstRowsText);
+    sheetSummaries.push(`  * "${sheetName}" -> ${sheetKind} (${rows.length} filas)`);
 
-      const rawText = entries.map(([key, value]) => `${key}: ${valueToString(value)}`).join(" | ");
-
-      for (const [fieldName, amount] of [
-        ["Precio lista", priceList],
-        ["Precio contado", cash],
-        ["Precio financiamiento", financing],
-        ["Bono", bonus]
-      ] as const) {
-        if (!amount) continue;
-
-        changes.push({
-          category: fieldName === "Bono" ? "BONO" : "PRECIO",
-          brandName: brandName || undefined,
-          modelName: modelName || undefined,
-          versionName: versionName || undefined,
-          fieldName,
-          proposedValue: String(amount),
-          amount,
-          rawText,
-          confidence: modelName && versionName ? CONFIDENCE.REVIEW : CONFIDENCE.AMBIGUOUS,
-          ambiguityReason: modelName && versionName ? undefined : "La fila contiene monto, pero no identifica claramente modelo y versión."
-        });
+    switch (sheetKind) {
+      case "PRECIOS":
+        changes.push(...parseSheetPrecios(sheetName, rows, "REGULAR", undefined));
+        break;
+      case "DERCO_CL":
+        changes.push(...parseSheetPrecios(sheetName, rows, "DERCO_CL", undefined));
+        break;
+      case "PREVENTA":
+        changes.push(...parseSheetPrecios(sheetName, rows, "PREVENTA", undefined));
+        break;
+      case "PATENTE_GRATIS":
+        changes.push(...parseSheetPatenteGratis(sheetName, rows));
+        break;
+      case "BONO_CIERRE": {
+        const headerRestrictions = rows
+          .slice(0, 3)
+          .flatMap((row) => Object.values(row).map(valueToString))
+          .filter(Boolean)
+          .join(". ");
+        changes.push(...parseSheetBonoCierre(sheetName, rows, headerRestrictions));
+        break;
       }
+      case "TASA":
+        changes.push(
+          ...parseTextUpdate(csvText).changes.map((c) => ({
+            ...c,
+            payload: { offerType: "TASA", sheetName }
+          }))
+        );
+        break;
+      case "CAMPANA":
+        changes.push(...parseSheetCampana(sheetName, rows));
+        break;
+      case "DESCONOCIDA":
+        if (rows.length > 0) {
+          changes.push(...parseTextUpdate(csvText).changes);
+        }
+        break;
     }
   }
 
-  const text = textParts.join("\n");
-  const parsedText = parseTextUpdate(text);
+  const fullText = textParts.join("\n\n");
+  const parsedText = parseTextUpdate(fullText);
+  const warnings = parsedText.warnings;
+
+  if (sheetSummaries.length > 0) {
+    warnings.unshift(`Hojas procesadas:\n${sheetSummaries.join("\n")}`);
+  }
 
   return {
     importer: "excel",
     detectedBrand: parsedText.detectedBrand,
     detectedMonth: parsedText.detectedMonth,
-    rawText: text,
-    changes: [...changes, ...parsedText.changes],
-    warnings: parsedText.warnings
+    rawText: fullText,
+    changes,
+    warnings
   };
 }

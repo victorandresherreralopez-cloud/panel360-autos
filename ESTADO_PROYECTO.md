@@ -302,3 +302,31 @@ Se generó el documento oficial **`AUDITORIA_FUNCIONAL_REAL.md`** en la raíz de
    - **Fase 2 (Resend Email)**: Conectadas plantillas de recuperación de clave, saludos de cumpleaños, verificación de clientes y renovaciones de crédito.
    - **Fases 4 & 5 (Cron Job Diario)**: `/api/cron/daily-check` despacha alertas simultáneas por Telegram y correo Resend.
    - **Fase 6 (Investigación RUT)**: Tabla comparativa de proveedores de RUT para definición de Víctor.
+
+---
+
+## 10. Motor Comercial Multi-Hoja, Cero-404 Fichas Técnicas y Perfilador Exclusivo
+
+### Fecha y hora
+13 de agosto de 2026, 13:45 hrs (Chile)
+
+### Resumen de Implementaciones Realizadas
+
+1. **Motor de Inteligencia Comercial Multi-Marca**:
+   - **Esquema Prisma**: Modelo `CommercialOffer` incorporado con soporte de canales (`REGULAR`, `DERCO_CL`, `PREVENTA`, `FLOTAS`), aportes de cierre compartido (CES vs. Fabricante), patentes gratuitas, giftcards, mantenciones y tasas subvencionadas.
+   - **Parser Multi-Hoja**: Reescritura completa de `src/lib/importers/excel.ts` para procesar **todas las hojas** de libros comerciales de las marcas Derco (GWM, Mazda, Suzuki, Changan, Deepal, DFSK).
+   - **Módulo Promociones**: `/promociones` rediseñado para presentar tarjetas interactivas clasificadas por Ayudas Comercial Detectadas, Ofertas Estructuradas y Campañas Institucionales.
+
+2. **Resolución Definitiva de Fichas Técnicas (Garantía Cero-404)**:
+   - **Relación Prisma**: Campo `technicalSheetId` y relación `technicalSheet` añadidos al modelo `VehicleModel`.
+   - **Manejador `/api/documents/[id]/download`**: Reescrito para servir PDFs almacenados, redirigir a URLs remotas S3 o generar una Ficha Técnica Digital en HTML con diseño premium e impresión a PDF instantánea. Todo modelo dispone de su Ficha en 1 clic.
+
+3. **Perfilador Express & Desglose Comercial Completo**:
+   - **Filtro de Segmento Extendido**: Clasificación por `model.segment` prioritario para capturar la totalidad de SUVs, Pickups, Sedanes y Citycars de todas las marcas Derco.
+   - **Desglose en Catálogo `/vehiculos`**: Incorporados valores Neto Sin IVA para camionetas, gastos puestos en calle (Llave en Mano = Flete + Impuesto Verde + Registro + Permiso Circulación) y badges de Bonos Compartidos.
+
+### Estado Final del Sistema
+* **Compilación**: `next build` 100% limpia sin advertencias de tipos.
+* **Base de datos local**: SQLite en sincronía total con esquema Prisma.
+* **Próximo despliegue**: Sincronización a GitHub `master` y Vercel Production.
+

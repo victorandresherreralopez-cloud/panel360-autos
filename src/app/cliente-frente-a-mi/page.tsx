@@ -99,7 +99,11 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
       include: {
         brand: true,
         model: true,
-        prices: { where: { status: "VIGENTE" }, orderBy: { effectiveFrom: "desc" } }
+        // Incluir precios VIGENTES primero, con fallback a DETECTADO si no hay
+        prices: {
+          where: { status: { in: ["VIGENTE", "DETECTADO"] } },
+          orderBy: [{ status: "asc" }, { effectiveFrom: "desc" }] // DETECTADO < VIGENTE alfabéticamente
+        }
       },
       orderBy: [{ brand: { name: "asc" } }, { model: { name: "asc" } }, { commercialOrder: "asc" }, { name: "asc" }]
     }),
@@ -115,12 +119,22 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
 
   const scored = versions
     .map((version) => {
-      const listPrice = version.prices.find((item) => item.priceType === "LIST")?.amount ?? null;
-      const campaignPrice = version.prices.find((item) => item.priceType === "CAMPAIGN")?.amount ?? null;
-      const cashPrice = version.prices.find((item) => item.priceType === "CASH")?.amount ?? null;
-      const financingPrice = version.prices.find((item) => item.priceType === "FINANCING")?.amount ?? null;
+      const listPrice = version.prices.find((item) => item.priceType === "LIST" && item.status === "VIGENTE")?.amount
+        ?? version.prices.find((item) => item.priceType === "LIST")?.amount
+        ?? null;
+      const campaignPrice = version.prices.find((item) => item.priceType === "CAMPAIGN" && item.status === "VIGENTE")?.amount
+        ?? version.prices.find((item) => item.priceType === "CAMPAIGN")?.amount
+        ?? null;
+      const cashPrice = version.prices.find((item) => item.priceType === "CASH" && item.status === "VIGENTE")?.amount
+        ?? version.prices.find((item) => item.priceType === "CASH")?.amount
+        ?? null;
+      const financingPrice = version.prices.find((item) => item.priceType === "FINANCING" && item.status === "VIGENTE")?.amount
+        ?? version.prices.find((item) => item.priceType === "FINANCING")?.amount
+        ?? null;
+      const hasPendingPrice = version.prices.length > 0 && !version.prices.some((p) => p.status === "VIGENTE");
       const price = campaignPrice ?? cashPrice ?? financingPrice ?? listPrice;
       const detectedBonus = listPrice && price && listPrice > price ? listPrice - price : 0;
+
       const haystack = normalizeText(
         [
           version.brand.name,
@@ -155,6 +169,7 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
       let score = price ? 24 : -40;
 
       if (!price) warnings.push("Sin precio vigente aprobado.");
+      if (hasPendingPrice) warnings.push("Precio pendiente de aprobación en sistema.");
 
       if (budget && price) {
         if (price <= budget) {
@@ -173,25 +188,50 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
       let hardFiltered = false;
       const hardFilterReasons: string[] = [];
 
-      // 1. Carrocería / Segmento Obligatorio
+      // ── 1. Carrocería / Segmento Obligatorio ──────────────────────────────────
+      // Estrategia: usar model.segment como fuente de verdad primaria,
+      // luego haystack como fallback. Esto garantiza que Mazda CX-5, Suzuki Vitara,
+      // Changan CS55, GWM H6, etc. sean detectados correctamente sin importar
+      // cómo esté escrito el nombre del modelo.
       if (segment && segment !== "Indiferente") {
         const segLower = normalizeText(segment);
+        const rawSegment = normalizeText(version.model.segment ?? "");
         let segmentMatch = false;
 
         if (segLower === "pickup") {
-          segmentMatch = includesAny(haystack, ["pickup", "pick up", "pick-up", "camioneta", "cabina", "poer", "wingle", "hunter", "d1", "truck"]);
+          // Pickup: prioridad al segmento de DB, luego haystack
+          segmentMatch =
+            includesAny(rawSegment, ["pickup", "pick up", "pick-up", "camioneta"]) ||
+            includesAny(haystack, ["pickup", "pick up", "pick-up", "camioneta", "cabina doble", "poer", "wingle", "hunter", "hilux", "dmax", "ranger", "d-max", "triton"]);
         } else if (segLower === "suv") {
-          segmentMatch = includesAny(haystack, ["suv", "crossover"]) && !includesAny(haystack, ["pickup", "pick up", "camioneta", "truck"]);
+          // SUV / Crossover: incluye SUV Compacto, SUV Mediano, Crossover, etc.
+          // Excluye pickups aunque tengan "suv" en el nombre
+          const isPickup = includesAny(rawSegment, ["pickup", "camioneta"]) ||
+            includesAny(haystack, ["pickup", "camioneta", "pick up"]);
+          segmentMatch =
+            !isPickup && (
+              includesAny(rawSegment, ["suv", "crossover", "todoterreno", "todo terreno"]) ||
+              includesAny(haystack, ["suv", "crossover"])
+            );
         } else if (segLower === "sedan") {
-          segmentMatch = includesAny(haystack, ["sedan", "sedán"]);
+          segmentMatch =
+            includesAny(rawSegment, ["sedan", "sedán", "berlina"]) ||
+            includesAny(haystack, ["sedan", "sedán"]);
         } else if (segLower === "hatchback") {
-          segmentMatch = includesAny(haystack, ["hatchback", "hb"]);
+          segmentMatch =
+            includesAny(rawSegment, ["hatchback", "hb", "compacto"]) ||
+            includesAny(haystack, ["hatchback"]);
         } else if (segLower === "citycar") {
-          segmentMatch = includesAny(haystack, ["citycar", "city car", "alto", "celerio"]);
+          segmentMatch =
+            includesAny(rawSegment, ["citycar", "city car", "microcar", "urbano"]) ||
+            includesAny(haystack, ["citycar", "city car", "alto", "celerio", "s-presso", "spresso"]);
         } else if (segLower === "comercial") {
-          segmentMatch = includesAny(haystack, ["furgon", "van", "comercial", "cargo"]);
+          segmentMatch =
+            includesAny(rawSegment, ["comercial", "furgon", "van", "cargo"]) ||
+            includesAny(haystack, ["furgon", "van", "comercial", "cargo"]);
         } else {
-          segmentMatch = segmentText.includes(segLower) || haystack.includes(segLower);
+          // Fallback genérico: buscar texto exacto del segmento elegido
+          segmentMatch = rawSegment.includes(segLower) || haystack.includes(segLower);
         }
 
         if (segmentMatch) {
@@ -202,7 +242,7 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
         }
       }
 
-      // 2. Presupuesto Máximo Obligatorio
+      // ── 2. Presupuesto Máximo Obligatorio ────────────────────────────────────
       if (budget && price) {
         if (price <= budget) {
           reasons.push(`✅ Precio considerado: ${formatCLP(price)} (Dentro del presupuesto de ${formatCLP(budget)})`);
@@ -279,10 +319,19 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
       if (version.sapCode) score += 2;
       else warnings.push("Codigo CIT pendiente para impuesto verde.");
 
-      const aids = commercialAidAlerts.filter((alert) => commercialAidMatchesVehicle(alert, version.brand.name, version.model.name)).slice(0, 2);
+      const aids = commercialAidAlerts.filter((alert) => commercialAidMatchesVehicle(alert, version.brand.name, version.model.name));
+      const hasGiftcardOrReward =
+        includesAny(haystack, ["giftcard", "gift card", "premio", "premios", "regalo", "experiencia", "bono especial"]) ||
+        aids.some((a) => includesAny(normalizeText(`${a.title} ${a.detail} ${a.rawText}`), ["giftcard", "gift card", "premio", "premios", "regalo"]));
+
+      if (hasGiftcardOrReward) {
+        score += 25; // Prioridad especial para giftcards y premios
+        reasons.unshift("🎁 PRIORIDAD: Incluye Giftcard / Premio Especial");
+      }
+
       if (aids.length) {
         score += aids.length * 5;
-        addReason(reasons, "tiene ayuda comercial detectada");
+        reasons.push("tiene ayuda comercial detectada");
       }
 
       return {
@@ -293,23 +342,28 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
         score,
         hardFiltered,
         hardFilterReasons,
+        hasGiftcardOrReward,
         fit: clamp(Math.round(score), 0, 100),
-        reasons: reasons.slice(0, 5),
+        reasons: reasons.slice(0, 6),
         warnings: warnings.slice(0, 3),
         aids
       };
     });
 
   const compliantVehicles = scored
-    .filter((item) => item.price && !item.hardFiltered)
-    .sort((a, b) => b.score - a.score || (a.price ?? Number.MAX_SAFE_INTEGER) - (b.price ?? Number.MAX_SAFE_INTEGER));
+    .filter((item) => !item.hardFiltered)
+    .sort((a, b) => {
+      // Primero los que tienen precio, luego los sin precio
+      if (!!a.price !== !!b.price) return a.price ? -1 : 1;
+      return b.score - a.score || (a.price ?? Number.MAX_SAFE_INTEGER) - (b.price ?? Number.MAX_SAFE_INTEGER);
+    });
 
   const alternativeVehicles = scored
     .filter((item) => item.price && item.hardFiltered)
     .sort((a, b) => (a.price ?? 0) - (b.price ?? 0))
-    .slice(0, 3);
+    .slice(0, 5);
 
-  const displayVehicles = compliantVehicles.length ? compliantVehicles.slice(0, 3) : [];
+  const displayVehicles = compliantVehicles;
   const top = displayVehicles[0] ?? alternativeVehicles[0];
 
   const compareHref = scored.length >= 2 ? buildCompareHref(scored.map((item) => item.version.id)) : "/comparador";
@@ -604,7 +658,7 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
                 </h3>
               </div>
               <div className="grid gap-4 lg:grid-cols-3">
-                {compliantVehicles.slice(0, 3).map((item, index) => {
+                {compliantVehicles.map((item, index) => {
                   const label = `${item.version.brand.name} ${item.version.model.name} ${item.version.name}`;
                   const breakdown = getPricingBreakdown({
                     brandName: item.version.brand.name,
@@ -617,10 +671,15 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
                   });
 
                   return (
-                    <Panel key={item.version.id} className="border-2 border-emerald-500/20 shadow-panel">
+                    <Panel key={item.version.id} className={`border-2 ${item.hasGiftcardOrReward ? "border-amber-400 bg-amber-50/20" : "border-emerald-500/20"} shadow-panel`}>
+                      {item.hasGiftcardOrReward ? (
+                        <div className="mb-2 rounded bg-amber-500 px-2.5 py-1 text-center text-xs font-black text-white shadow-sm">
+                          🎁 GIFT CARD / PREMIO COMERCIAL ACTIVO
+                        </div>
+                      ) : null}
                       <div className="flex items-center justify-between gap-3">
-                        <StatusPill tone="good">
-                          {index === 0 ? "🏆 Mejor Opción" : index === 1 ? "Opción 2" : "Opción 3"}
+                        <StatusPill tone={item.hasGiftcardOrReward ? "warn" : "good"}>
+                          {index === 0 ? "🏆 Opción Principal #1" : `Opción #${index + 1}`}
                         </StatusPill>
                         <div className="flex items-center gap-1 text-sm font-black text-signal">
                           <Gauge className="h-4 w-4" aria-hidden="true" />
