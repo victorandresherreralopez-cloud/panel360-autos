@@ -168,41 +168,63 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
       }
 
       if (segment && segment !== "Indiferente") {
-        const segmentMatches = segmentText.includes(normalizeText(segment)) || haystack.includes(normalizeText(segment));
-        if (segmentMatches) {
-          score += 16;
+        const segLower = normalizeText(segment);
+        let segmentMatch = false;
+
+        if (segLower === "pickup") {
+          segmentMatch = includesAny(haystack, ["pickup", "pick up", "pick-up", "camioneta", "cabina", "pozo", "pozu"]);
+        } else if (segLower === "suv") {
+          segmentMatch = includesAny(haystack, ["suv", "crossover"]) && !includesAny(haystack, ["pickup", "pick up", "camioneta"]);
+        } else if (segLower === "sedan") {
+          segmentMatch = includesAny(haystack, ["sedan", "sedán"]);
+        } else if (segLower === "hatchback") {
+          segmentMatch = includesAny(haystack, ["hatchback", "hb"]);
+        } else if (segLower === "citycar") {
+          segmentMatch = includesAny(haystack, ["citycar", "city car", "compacto"]);
+        } else if (segLower === "comercial") {
+          segmentMatch = includesAny(haystack, ["furgon", "van", "comercial", "cargo"]);
+        } else {
+          segmentMatch = segmentText.includes(segLower) || haystack.includes(segLower);
+        }
+
+        if (segmentMatch) {
+          score += 40;
           addReason(reasons, `busca ${segment.toLowerCase()}`);
         } else {
-          score -= 5;
+          score -= 500; // Penalización severa para no mostrar SUVs si pidió Pickup
         }
       }
 
       if (fuel && fuel !== "Indiferente") {
         if (haystack.includes(normalizeText(fuel))) {
-          score += 11;
+          score += 15;
           addReason(reasons, `combustible ${fuel.toLowerCase()}`);
         } else {
-          score -= 4;
+          score -= 20;
         }
       }
 
       if (box && box !== "Indiferente") {
         const wantsAutomatic = normalizeText(box).includes("automat");
-        const matchesBox = wantsAutomatic ? includesAny(haystack, ["AT", "CVT", "DCT", "automatica"]) : includesAny(haystack, ["MT", "manual"]);
+        const isAutomatic = includesAny(haystack, ["at", "cvt", "dct", "amt", "automatica", "aut"]);
+        const isManual = includesAny(haystack, ["mt", "manual", "mecanica", "mecanico"]);
+
+        const matchesBox = wantsAutomatic ? isAutomatic : isManual && !isAutomatic;
+
         if (matchesBox) {
-          score += 9;
+          score += 35;
           addReason(reasons, `caja ${box.toLowerCase()}`);
         } else {
-          score -= 4;
+          score -= 500; // Penalización severa para no mostrar manuales si pidió automática
         }
       }
 
       if (traction && traction !== "Indiferente") {
         if (haystack.includes(normalizeText(traction))) {
-          score += 9;
+          score += 15;
           addReason(reasons, `traccion ${traction}`);
         } else {
-          score -= traction === "4WD" || traction === "AWD" ? 8 : 2;
+          score -= traction === "4WD" || traction === "AWD" ? 25 : 10;
         }
       }
 

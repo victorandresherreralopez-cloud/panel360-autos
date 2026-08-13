@@ -15,7 +15,20 @@ const config: Config = {
         steel: "#4b6177",
         mist: "#eef2f6",
         copper: "#b7794f",
-        signal: "#0f766e"
+        signal: "#0f766e",
+        derco: {
+          50: "#fff1f2",
+          100: "#ffe4e6",
+          200: "#fecdd3",
+          300: "#fda4af",
+          400: "#fb7185",
+          500: "#e31837", // Derco Official Red Accent
+          600: "#c10c27",
+          700: "#9f091f",
+          800: "#830c1d",
+          900: "#700f1d",
+          950: "#3f020b"
+        }
       },
       boxShadow: {
         panel: "0 18px 50px rgba(17, 24, 39, 0.08)"

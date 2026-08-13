@@ -116,10 +116,15 @@ a {
 }
 
 .btn-primary {
-  border-color: #0f766e;
-  background: #0f766e;
+  border-color: #e31837;
+  background: #e31837;
   color: white;
-  box-shadow: 0 10px 24px rgba(15, 118, 110, 0.22);
+  box-shadow: 0 10px 24px rgba(227, 24, 55, 0.28);
+}
+
+.btn-primary:hover {
+  background: #c10c27;
+  border-color: #c10c27;
 }
 
 .btn-secondary {
@@ -128,7 +133,7 @@ a {
 }
 
 .dark .btn-secondary {
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.14);
   background: #1e293b;
   color: #f8fafc;
 }
