@@ -57,12 +57,16 @@ function run(command, args) {
   });
 }
 
+const schemaArg = process.platform === "win32" && targetSchemaPath.includes(" ")
+  ? `--schema="${targetSchemaPath}"`
+  : `--schema=${targetSchemaPath}`;
+
 if (process.env.VERCEL_SKIP_DB_PUSH !== "1") {
-  run("npx", ["prisma", "db", "push", `--schema="${targetSchemaPath}"`, "--skip-generate"]);
+  run("npx", ["prisma", "db", "push", schemaArg, "--skip-generate"]);
 }
 
 try {
-  run("npx", ["prisma", "generate", `--schema="${targetSchemaPath}"`]);
+  run("npx", ["prisma", "generate", schemaArg]);
 } catch (e) {
   console.log("Prisma generate se saltó en entorno local con servidor activo.");
 }

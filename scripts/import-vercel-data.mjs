@@ -58,11 +58,15 @@ if (directUrl && !process.env.DIRECT_URL) {
 
 writeFileSync(targetSchemaPath, postgresSchema);
 
-execFileSync("npx", ["prisma", "db", "push", `--schema="${targetSchemaPath}"`, "--skip-generate"], {
+const schemaArg = process.platform === "win32" && targetSchemaPath.includes(" ")
+  ? `--schema="${targetSchemaPath}"`
+  : `--schema=${targetSchemaPath}`;
+
+execFileSync("npx", ["prisma", "db", "push", schemaArg, "--skip-generate"], {
   shell: process.platform === "win32",
   stdio: "inherit"
 });
-execFileSync("npx", ["prisma", "generate", `--schema="${targetSchemaPath}"`], {
+execFileSync("npx", ["prisma", "generate", schemaArg], {
   shell: process.platform === "win32",
   stdio: "inherit"
 });
