@@ -13,3 +13,5 @@ backups/
 documentos/
 
 .vercel
+
+.env*
