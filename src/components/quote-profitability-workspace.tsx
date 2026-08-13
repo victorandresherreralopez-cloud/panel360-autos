@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { ClipboardCheck, CreditCard } from "lucide-react";
 import { saveQuote } from "@/lib/actions";
 import { formatCLP } from "@/lib/format";
+import { getPricingBreakdown } from "@/lib/pricing-breakdown";
 import { ProfitabilitySheet, type FormState, type ProfitabilityVehicle } from "@/components/profitability-sheet";
 
 type QuoteCustomer = {
@@ -149,6 +150,124 @@ export function QuoteProfitabilityWorkspace({ vehicles, customers, today, initia
             </p>
           </div>
         </form>
+
+        {/* TARJETA DE DESGLOSE COMERCIAL DETALLADO */}
+        {selectedVehicle ? (() => {
+          const breakdown = getPricingBreakdown({
+            brandName: selectedVehicle.brandName,
+            modelName: selectedVehicle.modelName,
+            versionName: selectedVehicle.versionName,
+            segment: selectedVehicle.segment,
+            equipmentSummary: selectedVehicle.equipmentSummary,
+            citCode: selectedVehicle.citCode,
+            prices: selectedVehicle.prices ?? []
+          });
+
+          return (
+            <div className="mt-6 rounded-xl border border-graphite/15 bg-slate-900 p-5 text-white shadow-xl">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-white/10 pb-4">
+                <div>
+                  <span className="rounded bg-rose-600 px-2.5 py-1 text-xs font-black uppercase text-white tracking-wider">
+                    {selectedVehicle.brandName} — Desglose Comercial Completo
+                  </span>
+                  <h3 className="mt-2 text-xl font-black text-white">{selectedVehicle.label}</h3>
+                </div>
+                {breakdown.isCommercialVehicle ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-black text-emerald-400 border border-emerald-500/40">
+                    🚚 Vehículo Comercial / Pickup (Apto Factura Sin IVA)
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/20 px-3 py-1 text-xs font-black text-blue-400 border border-blue-500/40">
+                    🚗 Vehículo Pasajeros
+                  </span>
+                )}
+              </div>
+
+              {/* BLOQUE DE VALOR SIN IVA PARA CAMIONETAS */}
+              {breakdown.isCommercialVehicle && breakdown.cashNetPrice ? (
+                <div className="mt-4 rounded-lg bg-emerald-950/60 border border-emerald-500/40 p-4">
+                  <p className="text-xs font-black uppercase tracking-wider text-emerald-400">
+                    💼 Valor Especial Empresa / Facturación (Sin IVA)
+                  </p>
+                  <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <p className="text-xs text-emerald-300">Valor Neto (Sin IVA - Contado):</p>
+                      <p className="text-2xl font-black text-emerald-400">{formatCLP(breakdown.cashNetPrice)}</p>
+                      <p className="text-xs text-emerald-300/80">+ IVA (19%): {formatCLP(breakdown.cashVatAmount)}</p>
+                    </div>
+                    {breakdown.financingNetPrice ? (
+                      <div>
+                        <p className="text-xs text-emerald-300">Valor Neto (Sin IVA - Financiamiento todos los bonos):</p>
+                        <p className="text-2xl font-black text-emerald-400">{formatCLP(breakdown.financingNetPrice)}</p>
+                        <p className="text-xs text-emerald-300/80">+ IVA (19%): {formatCLP(breakdown.financingVatAmount)}</p>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* COMPARATIVA DE PRECIOS Y BONOS */}
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-lg bg-white/5 p-3.5 border border-white/10">
+                  <p className="text-xs font-bold uppercase text-slate-400">1. Precio Lista Público</p>
+                  <p className="mt-1 text-lg font-black text-slate-200">{formatCLP(breakdown.listPrice)}</p>
+                  <p className="text-xs text-slate-400 mt-1">Sin aplicación de bonos</p>
+                </div>
+                <div className="rounded-lg bg-white/5 p-3.5 border border-white/10">
+                  <p className="text-xs font-bold uppercase text-slate-400">2. Precio Contado (con Bono Marca)</p>
+                  <p className="mt-1 text-xl font-black text-rose-400">{formatCLP(breakdown.cashPrice)}</p>
+                  {breakdown.brandBonus ? <p className="text-xs font-bold text-emerald-400 mt-1">Ahorro Bono Marca: -{formatCLP(breakdown.brandBonus)}</p> : <p className="text-xs text-slate-400 mt-1">Sin bono marca vigente</p>}
+                </div>
+                <div className="rounded-lg bg-white/10 p-3.5 border border-rose-500/40 bg-rose-950/20">
+                  <p className="text-xs font-bold uppercase text-rose-400">3. Financiamiento (Todos los Bonos)</p>
+                  <p className="mt-1 text-2xl font-black text-emerald-400">{formatCLP(breakdown.financingPrice)}</p>
+                  <p className="text-xs font-bold text-emerald-300 mt-1">Ahorro Total: -{formatCLP(breakdown.totalBonus)}</p>
+                </div>
+              </div>
+
+              {/* GASTOS DE ENTREGA (LLAVE EN MANO) */}
+              <div className="mt-4 rounded-lg bg-white/5 p-4 border border-white/10">
+                <p className="text-xs font-black uppercase text-slate-300 tracking-wider">
+                  📦 Gastos Operacionales & Puesta en Calle (Llave en Mano)
+                </p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-4 text-xs">
+                  <div className="rounded bg-black/30 p-2.5">
+                    <span className="text-slate-400 block">Flete e Inscripción:</span>
+                    <strong className="text-white text-sm">{formatCLP(breakdown.estimatedFreight + breakdown.estimatedRegistration)}</strong>
+                  </div>
+                  <div className="rounded bg-black/30 p-2.5">
+                    <span className="text-slate-400 block">Impuesto Verde (Est.):</span>
+                    <strong className="text-white text-sm">{formatCLP(breakdown.estimatedGreenTax)}</strong>
+                  </div>
+                  <div className="rounded bg-black/30 p-2.5">
+                    <span className="text-slate-400 block">Permiso Circulación (Est.):</span>
+                    <strong className="text-white text-sm">{formatCLP(breakdown.estimatedPermit)}</strong>
+                  </div>
+                  <div className="rounded bg-emerald-950/80 border border-emerald-500/40 p-2.5">
+                    <span className="text-emerald-400 font-bold block">TOTAL LLAVE EN MANO:</span>
+                    <strong className="text-emerald-300 text-base">{formatCLP(breakdown.estimatedKeyInHandCash)}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* ALERTAS DE BONOS COMPARTIDOS Y CAMPAÑAS */}
+              {breakdown.sharedBonusAlert || breakdown.campaignAlerts.length ? (
+                <div className="mt-4 grid gap-2">
+                  {breakdown.sharedBonusAlert ? (
+                    <div className="rounded-lg bg-amber-500/20 border border-amber-500/40 p-3 text-xs font-bold text-amber-300 flex items-center gap-2">
+                      ⭐ {breakdown.sharedBonusAlert}
+                    </div>
+                  ) : null}
+                  {breakdown.campaignAlerts.map((alert) => (
+                    <div key={alert} className="rounded bg-white/5 px-3 py-1.5 text-xs text-slate-300">
+                      • {alert}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          );
+        })() : null}
       </section>
 
       <ProfitabilitySheet vehicles={vehicles} today={today} initialState={profitabilityState} syncKey={syncKey} hideVehicleSelector />

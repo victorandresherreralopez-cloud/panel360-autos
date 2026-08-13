@@ -40,9 +40,12 @@ export default async function QuotePage({ searchParams }: { searchParams?: Recor
       brandName: version.brand.name,
       modelName: version.model.name,
       versionName: version.name,
+      segment: version.model.segment,
+      equipmentSummary: version.equipmentSummary,
       citCode: version.sapCode,
       listPrice,
-      campaignPrice
+      campaignPrice,
+      prices: version.prices.map((p) => ({ priceType: p.priceType, amount: p.amount }))
     };
   });
 

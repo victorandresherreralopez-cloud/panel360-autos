@@ -16,6 +16,7 @@ import {
 import clsx from "clsx";
 import { EmptyState, Panel, StatusPill, VehicleVisual } from "@/components/ui";
 import { formatCLP, missing, normalizeText } from "@/lib/format";
+import { getPricingBreakdown } from "@/lib/pricing-breakdown";
 
 export type VehicleExplorerAid = {
   id: string;
@@ -35,6 +36,7 @@ export type VehicleExplorerVersion = {
   fuelType: string | null;
   listPrice: number | null;
   bestPrice: number | null;
+  prices?: Array<{ priceType: string; amount: number }>;
 };
 
 export type VehicleExplorerModel = {
@@ -374,41 +376,67 @@ export function VehiclesExplorer({
                         <tr>
                           <th>Version</th>
                           <th>Codigo CIT</th>
-                          <th>Motor</th>
-                          <th>Transmision</th>
-                          <th>Precio lista</th>
+                          <th>Precio Contado</th>
+                          <th>Financiamiento (Todos Bonos)</th>
+                          <th>Valor Sin IVA</th>
                           <th>Accion</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {model.versions.map((version) => (
-                          <tr key={version.id}>
-                            <td className="font-black text-ink">{version.name}</td>
-                            <td>
-                              {version.sapCode ? (
-                                <span className="inline-flex items-center gap-1 font-black text-signal">
-                                  <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-                                  {version.sapCode}
-                                </span>
-                              ) : (
-                                <span className="font-bold text-amber-800">Pendiente</span>
-                              )}
-                            </td>
-                            <td>{missing(version.engine)}</td>
-                            <td>{missing(version.transmission)}</td>
-                            <td>{formatCLP(version.listPrice)}</td>
-                            <td>
-                              <div className="flex gap-2">
-                                <Link href={`/cotizador?versionId=${version.id}`} className="rounded-lg border border-graphite/10 bg-white px-2.5 py-1.5 text-xs font-black text-graphite transition hover:border-signal/40">
-                                  Cotizar
-                                </Link>
-                                <Link href={`/rentabilidad?versionId=${version.id}`} className="rounded-lg border border-graphite/10 bg-white px-2.5 py-1.5 text-xs font-black text-graphite transition hover:border-signal/40">
-                                  Rentabilidad
-                                </Link>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
+                        {model.versions.map((version) => {
+                          const breakdown = getPricingBreakdown({
+                            brandName: model.brandName,
+                            modelName: model.name,
+                            versionName: version.name,
+                            segment: model.segment,
+                            citCode: version.sapCode,
+                            prices: version.prices ? version.prices.map((p) => ({ priceType: p.priceType, amount: p.amount })) : []
+                          });
+
+                          return (
+                            <tr key={version.id}>
+                              <td className="font-black text-ink">
+                                {version.name}
+                                {breakdown.sharedBonusAlert ? (
+                                  <span className="ml-2 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-300">
+                                    ⭐ Bono Compartido
+                                  </span>
+                                ) : null}
+                              </td>
+                              <td>
+                                {version.sapCode ? (
+                                  <span className="inline-flex items-center gap-1 font-black text-signal">
+                                    <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                                    {version.sapCode}
+                                  </span>
+                                ) : (
+                                  <span className="font-bold text-amber-800">Pendiente</span>
+                                )}
+                              </td>
+                              <td className="font-bold text-ink">{formatCLP(breakdown.cashPrice)}</td>
+                              <td className="font-black text-emerald-700">{formatCLP(breakdown.financingPrice)}</td>
+                              <td>
+                                {breakdown.isCommercialVehicle && breakdown.cashNetPrice ? (
+                                  <span className="font-black text-emerald-700">
+                                    {formatCLP(breakdown.cashNetPrice)} <span className="text-[10px] font-semibold text-steel">+IVA</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-steel">N/A (Pasajeros)</span>
+                                )}
+                              </td>
+                              <td>
+                                <div className="flex gap-2">
+                                  <Link href={`/cotizador?versionId=${version.id}`} className="rounded-lg border border-graphite/10 bg-white px-2.5 py-1.5 text-xs font-black text-graphite transition hover:border-signal/40">
+                                    Cotizar
+                                  </Link>
+                                  <Link href={`/rentabilidad?versionId=${version.id}`} className="rounded-lg border border-graphite/10 bg-white px-2.5 py-1.5 text-xs font-black text-graphite transition hover:border-signal/40">
+                                    Rentabilidad
+                                  </Link>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   ) : (

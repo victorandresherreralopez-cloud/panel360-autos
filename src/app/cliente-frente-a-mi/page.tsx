@@ -16,6 +16,7 @@ import {
 import { saveClientProfile } from "@/lib/actions";
 import { commercialAidMatchesVehicle, getCommercialAidAlerts, type CommercialAidAlert } from "@/lib/commercial-aids";
 import { formatCLP, missing, normalizeText, parseMoney } from "@/lib/format";
+import { getPricingBreakdown } from "@/lib/pricing-breakdown";
 import { prisma } from "@/lib/prisma";
 import { EmptyState, Notice, PageHeader, Panel, StatusPill } from "@/components/ui";
 
@@ -605,6 +606,16 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
               <div className="grid gap-4 lg:grid-cols-3">
                 {compliantVehicles.slice(0, 3).map((item, index) => {
                   const label = `${item.version.brand.name} ${item.version.model.name} ${item.version.name}`;
+                  const breakdown = getPricingBreakdown({
+                    brandName: item.version.brand.name,
+                    modelName: item.version.model.name,
+                    versionName: item.version.name,
+                    segment: item.version.model.segment,
+                    equipmentSummary: item.version.equipmentSummary,
+                    citCode: item.version.sapCode,
+                    prices: item.version.prices ?? []
+                  });
+
                   return (
                     <Panel key={item.version.id} className="border-2 border-emerald-500/20 shadow-panel">
                       <div className="flex items-center justify-between gap-3">
@@ -618,8 +629,43 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
                       </div>
                       <h2 className="mt-4 text-xl font-black text-ink">{item.version.brand.name} {item.version.model.name}</h2>
                       <p className="mt-1 text-sm font-black text-graphite">{item.version.name}</p>
-                      <p className="mt-4 text-2xl font-black text-ink">{formatCLP(item.price)}</p>
-                      {item.detectedBonus ? <p className="mt-1 text-sm font-black text-signal">Bono marca / campaña: {formatCLP(item.detectedBonus)}</p> : null}
+                      
+                      {/* DESGLOSE PRECIO CONTADO Y FINANCIAMIENTO CON TODOS LOS BONOS */}
+                      <div className="mt-3 grid gap-1.5 rounded-lg bg-mist p-3 text-xs">
+                        <div className="flex justify-between font-semibold text-graphite">
+                          <span>Precio Lista:</span>
+                          <span>{formatCLP(breakdown.listPrice)}</span>
+                        </div>
+                        <div className="flex justify-between font-bold text-ink">
+                          <span>Precio Contado:</span>
+                          <span className="text-signal">{formatCLP(breakdown.cashPrice)}</span>
+                        </div>
+                        <div className="flex justify-between font-black text-emerald-700 bg-emerald-100 p-1.5 rounded">
+                          <span>Financiamiento (Todos Bonos):</span>
+                          <span>{formatCLP(breakdown.financingPrice)}</span>
+                        </div>
+                      </div>
+
+                      {/* CAJA DE VALOR SIN IVA PARA CAMIONETAS */}
+                      {breakdown.isCommercialVehicle && breakdown.cashNetPrice ? (
+                        <div className="mt-2 rounded bg-emerald-900 p-2.5 text-white">
+                          <p className="text-[10px] font-black uppercase text-emerald-300">💼 Valor Empresa / Factura (Sin IVA)</p>
+                          <p className="text-lg font-black text-emerald-400">{formatCLP(breakdown.cashNetPrice)} <span className="text-xs font-normal text-emerald-200">+ IVA (19%)</span></p>
+                        </div>
+                      ) : null}
+
+                      {/* GASTOS PUESTA EN CALLE */}
+                      <div className="mt-2 text-[11px] font-semibold text-steel flex justify-between border-t border-graphite/10 pt-2">
+                        <span>Puesta en calle est.:</span>
+                        <strong className="text-graphite">{formatCLP(breakdown.estimatedKeyInHandCash)}</strong>
+                      </div>
+
+                      {/* ALERTAS DE BONOS COMPARTIDOS */}
+                      {breakdown.sharedBonusAlert ? (
+                        <p className="mt-2 rounded bg-amber-100 p-1.5 text-[11px] font-bold text-amber-900 border border-amber-300">
+                          ⭐ {breakdown.sharedBonusAlert}
+                        </p>
+                      ) : null}
 
                       <div className="mt-4 grid gap-2">
                         {item.reasons.map((reason) => (

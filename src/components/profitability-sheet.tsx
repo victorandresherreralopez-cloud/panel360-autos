@@ -10,9 +10,12 @@ export type ProfitabilityVehicle = {
   brandName: string;
   modelName: string;
   versionName: string;
+  segment?: string | null;
+  equipmentSummary?: string | null;
   citCode: string | null;
   listPrice: number | null;
   campaignPrice: number | null;
+  prices?: Array<{ priceType: string; amount: number }>;
 };
 
 type ProfitabilitySheetProps = {

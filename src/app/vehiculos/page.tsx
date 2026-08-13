@@ -94,7 +94,8 @@ export default async function VehiclesPage({ searchParams }: { searchParams?: { 
             traction: version.traction,
             fuelType: version.fuelType,
             listPrice,
-            bestPrice: campaignPrice ?? cashPrice ?? financingPrice ?? listPrice
+            bestPrice: campaignPrice ?? cashPrice ?? financingPrice ?? listPrice,
+            prices: version.prices.map((p) => ({ priceType: p.priceType, amount: p.amount }))
           };
         })
       };
