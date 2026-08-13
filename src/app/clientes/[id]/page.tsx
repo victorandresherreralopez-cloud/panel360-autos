@@ -1,10 +1,11 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CreditCard } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, CreditCard, PlusCircle } from "lucide-react";
 import { addCreditContract, addCustomerActivity, addReminder, updateCustomerStatus } from "@/lib/actions";
 import { formatCLP, formatDate, formatDateTime, fullName } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { PageHeader, Panel, StatusPill } from "@/components/ui";
+import { CustomerFicha360 } from "@/components/customer-ficha360";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,8 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
         reminders: { orderBy: { dueAt: "asc" } },
         credits: { orderBy: { createdAt: "desc" } },
         vehicles: { orderBy: { createdAt: "desc" } },
-        quotes: { orderBy: { createdAt: "desc" }, include: { items: true } }
+        quotes: { orderBy: { createdAt: "desc" } },
+        sales: { orderBy: { saleDate: "desc" } }
       }
     }),
     prisma.customerStatus.findMany({ orderBy: { position: "asc" } })
@@ -27,173 +29,130 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
 
   if (!customer) notFound();
 
+  const name = fullName(customer.firstName, customer.lastName);
+
   return (
     <div className="grid gap-6">
-      <PageHeader
-        title={fullName(customer.firstName, customer.lastName)}
-        description={`${customer.status?.name ?? "Sin estado"} | ${customer.origin?.name ?? "Origen no informado"} | ${customer.interestedModel ?? "Vehiculo pendiente"}`}
+      {/* Header */}
+      <div className="flex items-start gap-3">
+        <Link
+          href="/clientes"
+          className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800"
+          aria-label="Volver a Clientes"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Link>
+        <div className="min-w-0 flex-1">
+          <PageHeader
+            eyebrow={`${customer.rut ?? "RUT no registrado"} · ${customer.status?.name ?? "Sin estado"}`}
+            title={`Ficha 360 — ${name}`}
+            description={`Origen: ${customer.origin?.name ?? "No informado"} · Última actualización: ${formatDateTime(customer.updatedAt)}`}
+          />
+        </div>
+      </div>
+
+      {/* FICHA 360 CON PESTAÑAS */}
+      <CustomerFicha360
+        customer={customer}
+        formatCLP={formatCLP}
+        formatDate={formatDate}
+        formatDateTime={formatDateTime}
       />
 
-      <div className="grid gap-5 xl:grid-cols-[0.85fr_1.15fr]">
-        <Panel>
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-xl font-black text-ink">Ficha del cliente</h2>
-            <StatusPill>{customer.status?.name ?? "Sin estado"}</StatusPill>
-          </div>
-          <dl className="mt-4 grid gap-3 text-sm">
-            <div>
-              <dt className="font-black text-steel">Contacto</dt>
-              <dd className="font-semibold text-graphite">{customer.phone ?? "Telefono pendiente"} | {customer.email ?? "Email pendiente"}</dd>
-            </div>
-            <div>
-              <dt className="font-black text-steel">RUT</dt>
-              <dd className="font-semibold text-graphite">{customer.rut ?? "RUT pendiente"}</dd>
-            </div>
-            <div>
-              <dt className="font-black text-steel">Direccion</dt>
-              <dd className="font-semibold leading-6 text-graphite">
-                {[customer.address, customer.commune, customer.city, customer.region].filter(Boolean).join(", ") || "Direccion pendiente"}
-              </dd>
-            </div>
-            <div>
-              <dt className="font-black text-steel">Interes</dt>
-              <dd className="font-semibold text-graphite">
-                {[customer.interestedBrand, customer.interestedModel, customer.interestedVersion].filter(Boolean).join(" ") || "Informacion pendiente de cargar"}
-              </dd>
-            </div>
-            <div>
-              <dt className="font-black text-steel">Presupuesto</dt>
-              <dd className="font-semibold text-graphite">{formatCLP(customer.budget)}</dd>
-            </div>
-            <div>
-              <dt className="font-black text-steel">Cumpleanos</dt>
-              <dd className="font-semibold text-graphite">{customer.birthDate ? formatDate(customer.birthDate) : "Fecha pendiente"}</dd>
-            </div>
-            <div>
-              <dt className="font-black text-steel">Notas</dt>
-              <dd className="font-semibold leading-6 text-graphite">{customer.notes ?? "Sin observaciones"}</dd>
-            </div>
-          </dl>
-
-          <form action={updateCustomerStatus} className="mt-5 grid gap-3">
-            <input type="hidden" name="customerId" value={customer.id} />
-            <select className="input" name="statusId" defaultValue={customer.statusId ?? ""}>
-              {statuses.map((status) => (
-                <option key={status.id} value={status.id}>
-                  {status.name}
-                </option>
-              ))}
-            </select>
-            <button className="btn btn-primary w-fit" type="submit">
-              Actualizar estado
-            </button>
-          </form>
-        </Panel>
-
-        <Panel>
-          <h2 className="text-xl font-black text-ink">Linea de tiempo</h2>
-          <form action={addCustomerActivity} className="mt-4 grid gap-3 md:grid-cols-[0.35fr_1fr_auto]">
-            <input type="hidden" name="customerId" value={customer.id} />
-            <select className="input" name="type" required>
-              {["LLAMADO", "WHATSAPP", "COTIZACION", "SEGUIMIENTO", "CREDITO", "RESERVA", "ENTREGA", "POSTVENTA", "OTRO"].map((item) => (
-                <option key={item}>{item}</option>
-              ))}
-            </select>
-            <input className="input" name="description" placeholder="Detalle de actividad" required />
-            <button className="btn btn-primary" type="submit">
-              Agregar
-            </button>
-          </form>
-          <div className="mt-5 grid gap-3">
-            {customer.activities.map((activity) => (
-              <div key={activity.id} className="rounded-lg border border-graphite/10 bg-white p-4">
-                <p className="font-black text-ink">{activity.type}</p>
-                <p className="mt-1 text-sm font-semibold leading-6 text-steel">{activity.description}</p>
-                <p className="mt-1 text-xs font-semibold text-steel">{formatDateTime(activity.activityAt)}</p>
-              </div>
-            ))}
-          </div>
-        </Panel>
-      </div>
-
+      {/* ACTIONS: Estado + Agregar Actividad + Recordatorio + Crédito */}
       <div className="grid gap-5 xl:grid-cols-3">
+        {/* Cambiar estado */}
         <Panel>
-          <h2 className="text-xl font-black text-ink">Proxima accion</h2>
+          <p className="text-xs font-black uppercase text-slate-400 dark:text-slate-500">Gestión</p>
+          <h3 className="mt-1 text-base font-black text-slate-900 dark:text-white">Estado del Cliente</h3>
+          <form action={updateCustomerStatus} className="mt-4 grid gap-3">
+            <input type="hidden" name="customerId" value={customer.id} />
+            <select className="input text-sm" name="statusId" defaultValue={customer.statusId ?? ""}>
+              {statuses.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            <button className="btn btn-primary w-fit" type="submit">Actualizar estado</button>
+          </form>
+        </Panel>
+
+        {/* Agregar actividad */}
+        <Panel>
+          <p className="text-xs font-black uppercase text-slate-400 dark:text-slate-500">Línea de Tiempo</p>
+          <h3 className="mt-1 text-base font-black text-slate-900 dark:text-white">Registrar Actividad</h3>
+          <form action={addCustomerActivity} className="mt-4 grid gap-3">
+            <input type="hidden" name="customerId" value={customer.id} />
+            <select className="input text-sm" name="type" required>
+              {["LLAMADO", "WHATSAPP", "COTIZACION", "SEGUIMIENTO", "CREDITO", "RESERVA", "ENTREGA", "POSTVENTA", "RENOVACION", "OTRO"].map((t) => (
+                <option key={t}>{t}</option>
+              ))}
+            </select>
+            <input className="input text-sm" name="description" placeholder="Detalle de la actividad" required />
+            <button className="btn btn-primary w-fit" type="submit">
+              <PlusCircle className="h-3.5 w-3.5" /> Agregar
+            </button>
+          </form>
+        </Panel>
+
+        {/* Recordatorio */}
+        <Panel>
+          <p className="text-xs font-black uppercase text-slate-400 dark:text-slate-500">Agenda</p>
+          <h3 className="mt-1 text-base font-black text-slate-900 dark:text-white">Próxima Acción</h3>
           <form action={addReminder} className="mt-4 grid gap-3">
             <input type="hidden" name="customerId" value={customer.id} />
-            <select className="input" name="type" required>
-              {["LLAMAR", "WHATSAPP", "ENVIAR COTIZACION", "SEGUIMIENTO", "SOLICITAR DOCUMENTOS", "REVISAR CREDITO", "AGENDAR TEST DRIVE", "RESERVA", "ENTREGA", "POSTVENTA", "RENOVACION", "OTRO"].map((item) => (
-                <option key={item}>{item}</option>
+            <select className="input text-sm" name="type" required>
+              {["LLAMAR", "WHATSAPP", "ENVIAR COTIZACION", "SEGUIMIENTO", "SOLICITAR DOCUMENTOS", "REVISAR CREDITO", "AGENDAR TEST DRIVE", "RESERVA", "ENTREGA", "POSTVENTA", "RENOVACION", "OTRO"].map((t) => (
+                <option key={t}>{t}</option>
               ))}
             </select>
-            <input className="input" name="dueAt" type="datetime-local" required />
-            <select className="input" name="priority">
-              {["BAJA", "NORMAL", "ALTA", "URGENTE"].map((item) => (
-                <option key={item}>{item}</option>
+            <input className="input text-sm" name="dueAt" type="datetime-local" required />
+            <select className="input text-sm" name="priority">
+              {["BAJA", "NORMAL", "ALTA", "URGENTE"].map((p) => (
+                <option key={p}>{p}</option>
               ))}
             </select>
-            <textarea className="input min-h-24" name="description" placeholder="Descripcion" required />
+            <textarea className="input min-h-20 text-sm" name="description" placeholder="Descripción del recordatorio" required />
             <button className="btn btn-primary w-fit" type="submit">
-              Guardar recordatorio
+              <PlusCircle className="h-3.5 w-3.5" /> Guardar recordatorio
             </button>
           </form>
-          <div className="mt-4 grid gap-2">
-            {customer.reminders.map((reminder) => (
-              <div key={reminder.id} className="rounded-lg border border-graphite/10 bg-white p-3">
-                <p className="text-sm font-black text-ink">{reminder.type}</p>
-                <p className="text-xs font-semibold text-steel">{formatDateTime(reminder.dueAt)} | {reminder.status}</p>
-              </div>
-            ))}
-          </div>
-        </Panel>
-
-        <Panel>
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-xl font-black text-ink">Credito</h2>
-            <Link className="btn btn-secondary" href={`/creditos?customerId=${customer.id}`}>
-              <CreditCard className="h-4 w-4" aria-hidden="true" />
-              Amicar
-            </Link>
-          </div>
-          <form action={addCreditContract} className="mt-4 grid gap-3">
-            <input type="hidden" name="customerId" value={customer.id} />
-            <input className="input" name="financialEntity" placeholder="Entidad financiera" />
-            <input className="input" name="purchaseDate" type="date" />
-            <input className="input" name="firstInstallmentDate" type="date" />
-            <input className="input" name="installments" placeholder="Cantidad de cuotas" type="number" />
-            <input className="input" name="lastInstallmentDate" type="date" />
-            <input className="input" name="financedAmount" placeholder="Monto financiado" />
-            <input className="input" name="downPayment" placeholder="Pie" />
-            <input className="input" name="installmentAmount" placeholder="Cuota aproximada" />
-            <input className="input" name="rate" placeholder="Tasa si esta informada" />
-            <input className="input" name="cae" placeholder="CAE si esta informado" />
-            <textarea className="input min-h-24" name="observations" placeholder="Observaciones" />
-            <button className="btn btn-primary w-fit" type="submit">
-              Registrar credito
-            </button>
-          </form>
-        </Panel>
-
-        <Panel>
-          <h2 className="text-xl font-black text-ink">Historial comercial</h2>
-          <div className="mt-4 grid gap-3">
-            {customer.quotes.map((quote) => (
-              <div key={quote.id} className="rounded-lg border border-graphite/10 bg-white p-3">
-                <p className="text-sm font-black text-ink">{quote.title}</p>
-                <p className="text-xs font-semibold text-steel">Total: {formatCLP(quote.totalAmount)}</p>
-              </div>
-            ))}
-            {customer.credits.map((credit) => (
-              <div key={credit.id} className="rounded-lg border border-graphite/10 bg-white p-3">
-                <p className="text-sm font-black text-ink">Credito {credit.financialEntity ?? ""}</p>
-                <p className="text-xs font-semibold text-steel">
-                  Termino: {credit.lastInstallmentDate ? formatDate(credit.lastInstallmentDate) : "Fecha pendiente"} | {credit.endDateSource ?? "Sin fuente"}
-                </p>
-              </div>
-            ))}
-          </div>
         </Panel>
       </div>
+
+      {/* REGISTRAR CRÉDITO (inline, sin modal) */}
+      <Panel>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-black uppercase text-slate-400 dark:text-slate-500">Financiamiento</p>
+            <h3 className="mt-1 text-base font-black text-slate-900 dark:text-white">Registrar Contrato de Crédito</h3>
+          </div>
+          <Link href={`/creditos?customerId=${customer.id}`} className="btn btn-secondary">
+            <CreditCard className="h-4 w-4" /> Amicar
+          </Link>
+        </div>
+        <form action={addCreditContract} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <input type="hidden" name="customerId" value={customer.id} />
+          <input className="input text-sm" name="financialEntity" placeholder="Financiera (ej: Amicar)" />
+          <input className="input text-sm" name="purchaseDate" type="date" title="Fecha de compra" />
+          <input className="input text-sm" name="installments" placeholder="Nº cuotas" type="number" />
+          <input className="input text-sm" name="installmentAmount" placeholder="Valor cuota ($)" type="number" />
+          <input className="input text-sm" name="financedAmount" placeholder="Monto financiado ($)" type="number" />
+          <input className="input text-sm" name="downPayment" placeholder="Pie ($)" type="number" />
+          <input className="input text-sm" name="firstInstallmentDate" type="date" title="Primera cuota" />
+          <label className="grid gap-1">
+            <span className="text-[10px] font-black uppercase text-amber-600 dark:text-amber-400">⚠ Fecha Última Cuota</span>
+            <input className="input text-sm border-amber-300 dark:border-amber-700" name="lastInstallmentDate" type="date" />
+          </label>
+          <input className="input text-sm" name="rate" placeholder="Tasa %" />
+          <input className="input text-sm" name="cae" placeholder="CAE %" />
+          <textarea className="input min-h-16 text-sm sm:col-span-2" name="observations" placeholder="Observaciones del contrato" />
+          <div className="flex items-end sm:col-span-2 lg:col-span-4">
+            <button className="btn btn-primary" type="submit">
+              <CreditCard className="h-4 w-4" /> Registrar contrato de crédito
+            </button>
+          </div>
+        </form>
+      </Panel>
     </div>
   );
 }
