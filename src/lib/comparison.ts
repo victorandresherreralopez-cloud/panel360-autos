@@ -146,8 +146,9 @@ export function buildComparisonRows(versions: ComparableVersion[]) {
     { key: "closingTool.totalClosingSupportCash", label: "Apoyo Cierre Compartido (CES + Marca)", formatter: (_: any, v: ComparableVersion) => (v.closingTool.hasClosingSupport ? formatCLP(v.closingTool.totalClosingSupportCash) : "Sin fondo cierre") },
 
     // FICHA TÉCNICA Y EQUIPAMIENTO
-    ...VEHICLE_COMPARE_FIELDS.map((f) => ({ key: f.key, label: f.label, formatter: (val: any) => missing(val) }))
+    ...VEHICLE_COMPARE_FIELDS.map(([label, key]) => ({ key, label, formatter: (val: any) => missing(val) }))
   ];
+
 
   return rawFields.map((field) => {
     const getValue = (version: ComparableVersion) => {
