@@ -273,3 +273,32 @@ Se generó el documento oficial **`AUDITORIA_FUNCIONAL_REAL.md`** en la raíz de
 * **Arquitectura Objetivo:** GitHub + Vercel + Supabase PostgreSQL 100% OPERATIVA.
 * **Sistema en Producción:** [https://sistema-comercial-automotriz.vercel.app](https://sistema-comercial-automotriz.vercel.app)
 * **Documentación & Código:** 100% al día en GitHub y `ESTADO_PROYECTO.md`.
+
+---
+
+## 9. Resolución de Problemas Críticos en Producción y Mejoras Comerciales
+
+### Fecha y hora
+13 de agosto de 2026, 11:35 hrs (Chile)
+
+### Resumen de Avances y Soluciones Aplicadas
+
+1. **Problema Crítico 1 — Descarga de Fichas Técnicas (PDF)**:
+   - **Causa**: Intentaba leer rutas locales Windows `V:\...` no existentes en el disco de Vercel Linux.
+   - **Solución**: Se actualizaron las 65 fichas técnicas en Supabase a sus URLs directas en la nube (`https://dercocenter-api.s3.us-east-1.amazonaws.com/...pdf`) y se implementó una redirección instantánea a visor PDF nativo (`commit 27d989b`).
+
+2. **Problema Crítico 2 — Perfilador ("Cliente Frente a Mí")**:
+   - **Causa**: Sistema basado en puntajes acumulativos que recomendaba SUVs si tenían buen precio, desobedeciendo la exigencia del cliente.
+   - **Solución**: Se implementó una arquitectura con **Filtros Obligatorios Estrictos (Hard Filtering)**. Si el cliente exige `Pickup`, todo SUV o Sedán queda descartado (100% Pickups). Si busca presupuesto `<= $18.000.000`, sólo muestra las 12 Pickups reales del catálogo que cumplen (`commit 3b03544`).
+
+3. **Funcionalidades Comerciales Solicitadas**:
+   - **Valor Sin IVA (Neto)**: Destacado para camionetas y vehículos comerciales (`Precio con IVA / 1.19`).
+   - **Comparativa de Precios**: Precio Lista vs. Precio Contado vs. **Precio Financiamiento con Todos los Bonos**.
+   - **Gastos Puesta en Calle (Llave en Mano)**: Flete e Inscripción, Impuesto Verde y Permiso de Circulación Estimado.
+   - **Alertas ⭐ de Bonos Compartidos** (Marca + Concesionario) (`commit fb80ef0`).
+
+4. **Avance en Fases de Integración**:
+   - **Fase 1 (Telegram)**: Código preparado para envío a Telegram canal general o por vendedor (`customChatId`).
+   - **Fase 2 (Resend Email)**: Conectadas plantillas de recuperación de clave, saludos de cumpleaños, verificación de clientes y renovaciones de crédito.
+   - **Fases 4 & 5 (Cron Job Diario)**: `/api/cron/daily-check` despacha alertas simultáneas por Telegram y correo Resend.
+   - **Fase 6 (Investigación RUT)**: Tabla comparativa de proveedores de RUT para definición de Víctor.
