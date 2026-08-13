@@ -77,6 +77,8 @@ export function evaluateCommercialOffers(params: {
   prices: Array<{ priceType: string; amount: number; status?: string; channel?: string }>;
   offers?: Array<{
     offerType: string;
+    channel?: string | null;
+    paymentType?: string | null;
     amountCash?: number | null;
     amountCredit?: number | null;
     amountTotal?: number | null;
@@ -91,6 +93,7 @@ export function evaluateCommercialOffers(params: {
     sheetName?: string | null;
     status?: string;
   }>;
+
   customFreight?: number;
   customGreenTax?: number;
   preferredPayment?: "CONTADO" | "CREDITO" | "INDIFERENTE";
