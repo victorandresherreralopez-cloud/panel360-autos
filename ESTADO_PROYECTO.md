@@ -4,6 +4,21 @@ Este documento es la bitácora oficial del desarrollo de Panel360 Autos (Asisten
 
 ---
 
+## REGLA DE PRODUCCIÓN (MANDATORIA E INVIOLABLE)
+
+Una tarea o corrección únicamente se considera marcada como **`PROBADA EN PRODUCCIÓN`** cuando se verifican los 5 puntos siguientes en estricto orden:
+
+1. **Commit Git local** generado y verificado sin errores.
+2. **Commit GitHub Remote** sincronizado (`main` / `master`).
+3. **Vercel deployment** reporta `state = READY` (HTTP 200).
+4. **Dominio canónico de producción** (`https://sistema-comercial-automotriz.vercel.app`) apunta activamente a ese mismo hash de commit.
+5. **Prueba funcional empírica** realizada directamente sobre la URL de producción DESPUÉS del despliegue exitoso.
+
+Si cualquiera de los 5 puntos falla o está en curso, el estado DEBE registrarse como `NO DESPLEGADO` o `PENDIENTE DE VALIDACIÓN`.
+
+---
+
+
 # Registro de Actividades
 
 ## 1. Auditoría Inicial y Verificación de Entorno Local

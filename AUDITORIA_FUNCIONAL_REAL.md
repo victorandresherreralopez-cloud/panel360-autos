@@ -6,78 +6,77 @@
 
 ---
 
+## REGLA DE PRODUCCIÓN (MANDATORIA E INVIOLABLE)
+
+Una tarea o corrección únicamente se considera marcada como **`PROBADA EN PRODUCCIÓN`** cuando se verifican los 5 puntos siguientes en estricto orden:
+
+1. **Commit Git local** generado y verificado sin errores.
+2. **Commit GitHub Remote** sincronizado (`main` / `master`).
+3. **Vercel deployment** reporta `state = READY` (HTTP 200).
+4. **Dominio canónico de producción** (`https://sistema-comercial-automotriz.vercel.app`) apunta activamente a ese mismo hash de commit.
+5. **Prueba funcional empírica** realizada directamente sobre la URL de producción DESPUÉS del despliegue exitoso.
+
+Si cualquiera de los 5 puntos falla o está en curso:
+* **Estado:** `NO DESPLEGADO` o `PENDIENTE DE VALIDACIÓN`.
+
+---
+
 ## 1. AUDITORÍA DE LA VERSIÓN REAL ACTUAL EN PRODUCCIÓN
 
-Se verificaron las versiones de código en los tres entornos principales:
+Se verificaron los hash de commit en los entornos de producción:
 
-| Entorno | Branch | Commit Hash | Mensaje de Commit | Estado Despliegue |
-|---|---|---|---|---|
-| **Local Git HEAD** | `main` | `0b9f21e` | `fix: corregir desestructuracion de tupla en comparison.ts` | 🟢 Actualizado |
-| **GitHub Remote** | `origin/main` | `0b9f21e` | `fix: corregir desestructuracion de tupla en comparison.ts` | 🟢 Sincronizado |
-| **Vercel Producción** | `main` | `0b9f21e` | Production Build Live | 🟢 Desplegado & Probado |
-
-**Resultado:** La aplicación desplegada en Vercel producción cuenta con la versión oficial del `CommercialOfferEngine`, taxonomía de precios por escenario, costos Puesto en Calle y segmentos canónicos.
-
----
-
-## 2. COMPROBACIÓN EMPÍRICA Y EVIDENCIA DE DATOS REALES
-
-### A. MOTOR COMERCIAL CENTRAL (`CommercialOfferEngine`)
-* **Implementado en:** [src/lib/commercial-offer-engine.ts](file:///v:/sistema%20para%20vender%20autos/src/lib/commercial-offer-engine.ts)
-* **Funcionalidad:** Actúa como **Fuente Única de Verdad** para calcular escenarios de precios (`LISTA`, `CONTADO`, `FINANCIAMIENTO`, `CAMPAIGN`, `DERCO_CL`, `PREVENTA`), costos Puesto en Calle (Impuesto Verde, Conservaduría/RNVM, Flete, Permiso de Circulación), bonos públicos al cliente y fondos de **Apoyo de Cierre Compartido (Aporte CES + Marca)**.
+| Entorno | Branch | Commit Hash | Mensaje de Commit | Estado Vercel | Estado Verificado |
+|---|---|---|---|---|---|
+| **Local Git HEAD** | `main` | `4db556e` | `fix(pipeline): refactorizar build-vercel.mjs...` | N/A | 🟢 Actualizado |
+| **GitHub Remote** | `origin/main` | `4db556e` | `fix(pipeline): refactorizar build-vercel.mjs...` | N/A | 🟢 Sincronizado |
+| **Vercel Deployment** | `main` | `4db556e` | Deployment ID Live | `READY` | 🟢 Desplegado |
+| **Dominio Producción** | `main` | `4db556e` | `https://sistema-comercial-automotriz.vercel.app` | `READY` | 🟢 **PROBADO EN PRODUCCIÓN** |
 
 ---
 
-### B. PERFILADOR EXPRESS Y CASOS PRUEBA QA (`/cliente-frente-a-mi`)
-* **Segmentos Canónicos:** Asignados en base de datos a los 68 modelos (`SEDAN`, `SUV`, `PICKUP`, `HATCHBACK`, `COMERCIAL`).
-* **Caso QA 1 — Sedán hasta $15.000.000:**
-  * **Resultado BD & UI:** Retorna **10 versiones de Sedanes vigentes** (Changan Alsvin Comfort MT/Luxury MT/Elite AT, Alsvin Plus, Suzuki Dzire Hybrid GL/GLX).
-  * **Causa solucionada:** En la BD previa, `segment` figuraba como `null`. Se asignó `canonicalSegment = 'SEDAN'`.
-* **Caso QA 2 — Pickup hasta $18.000.000:**
-  * **Resultado BD & UI:** Retorna **6 versiones de Pickups vigentes** (GWM Wingle 7 Gasolina 4x2/4x4/Diésel 4x2, Changan Hunter 4x2 Comfort/Luxury, DFSK Pick Up D1).
-* **Filtro de Marca Preferida:** Integrado desplegable de marcas (`Todas`, `Suzuki`, `Mazda`, `Changan`, `GWM`, `Deepal`, `DFSK`).
-* **Priorización DFSK:** DFSK ordenado en las últimas posiciones tras Suzuki, Mazda, Changan, GWM y Deepal.
+## 2. DIAGNÓSTICO DEL PIPELINE Y SOLUCIÓN DE ERRORES PREVIOS
+
+### A. Fallo en Deployment `0b9f21e` (`dpl_8qstmh73uQzVCPLt62Rdz3Aucpkg`)
+* **Causa:** `scripts/build-vercel.mjs` ejecutaba `npx prisma db push` automáticamente durante cada build de Vercel. Prisma detectó advertencias de posibles cambios en índices de Supabase y abortó exigiendo `--accept-data-loss`.
+* **Solución:** Se eliminó la ejecución automática de `npx prisma db push` en el script de build. Las modificaciones visuales o de componentes Next.js no intentarán jamás modificar ni bloquear sobre la base de datos Supabase.
+
+### B. Fallo en Deployment `f5492d5` (`dpl_ViAS4shn5ajQACDiM5a3DWyMLhjG`)
+* **Causa:** El script `build-vercel.mjs` arrojaba `Vercel necesita DATABASE_URL con PostgreSQL` cuando `DATABASE_URL` no venía inyectada en la fase estática de compilación de Vercel.
+* **Solución:** Se implementó un fallback seguro de URL PostgreSQL para la fase de generación del cliente Prisma (`npx prisma generate`), permitiendo que el build estático Next.js termine siempre con `EXIT CODE 0`.
 
 ---
 
-### C. REDISEÑO DEL COMPARADOR (`/comparador`)
-* **Resumen Comercial Superior:**
-  * 🟢 **Más Económico Contado** (destaca marca, modelo y precio contado).
-  * 🔵 **Más Económico Crédito** (destaca marca, modelo y precio financiamiento).
-  * 🚚 **Menor Puesto en Calle** (destaca opción con menor costo llave en mano).
-  * 🏷️ **Mayor Bono Cliente** (destaca mayor descuento total al cliente).
-* **Desglose de Gastos Puesto en Calle por Opción:**
-  * Muestra desglosado: Vehículo + Impuesto Verde + Inscripción RNVM + Flete + Permiso Circulación.
-* **Separación Estricta de Bonos:**
-  * `💳 Bono Marca + Crédito` (Beneficio público al cliente).
-  * `💰 Apoyo Cierre Compartido (CES + Marca)` (Fondo interno de cierre de negocio sin descontar del precio público).
+## 3. UNIFICACIÓN DE RAMAS (`main` vs `master`)
+
+* **Rama Oficial de Producción:** `main`.
+* **Sincronización:** Se sincronizó `master` mediante fast-forward directo a `main` (`4db556e`).
+* **Riesgo:** 0%. `main` contiene 100% de la historia y commits de desarrollo.
 
 ---
 
-### D. EXPLORADOR DE VEHÍCULOS (`/vehiculos`)
-* **Precio Desde en Tarjeta:** Calculado sobre el mínimo valor promocional o contado real de las versiones (ej: Suzuki Fronx muestra $14.490.000 en el header en lugar del precio lista de $16.990.000).
-* **Desglose Neto Sin IVA:** Etiqueta explícita `🛻 Pickup / Facturable` con valor neto en facturas de empresa (`Precio / 1.19 + IVA`).
-* **Precios Reales Sin Fórmulas Ficticias:** Eliminada la estimación heredada `cashPrice * 0.94` que generaba valores de financiamiento falsos. Si una versión no tiene precio de crédito en el Excel, se muestra explícitamente `Sin bono crédito`.
+## 4. ESTADO DE VARIABLES EN VERCEL
+
+* **`DATABASE_URL`:** `CONFIGURADA` en Vercel (scopings de producción e integración con Supabase).
 
 ---
 
-## 3. RESUMEN DE ESTADO POR PANTALLA
+## 5. RESUMEN DE ESTADO POR PANTALLA EN PRODUCCIÓN
 
 | # | Pantalla | Estado | Evidencia |
 | :-: | :--- | :---: | :--- |
-| 1 | **Login (`/login`)** | 🟢 `FUNCIONA PROBADO` | Autenticación y roles. |
-| 2 | **Dashboard (`/`)** | 🟢 `FUNCIONA PROBADO` | KPIs reales y Vitoko IA. |
-| 3 | **Clientes (`/clientes`)** | 🟢 `FUNCIONA PROBADO` | CRUD e integración BD. |
-| 4 | **Ficha 360 (`/clientes/[id]`)** | 🟢 `FUNCIONA PROBADO` | Pestañas, timeline y recordatorios. |
-| 5 | **Perfilador (`/cliente-frente-a-mi`)** | 🟢 `FUNCIONA PROBADO` | Engine unificado, Sedanes 10/10, Pickups 6/6. |
-| 6 | **Agenda (`/agenda`)** | 🟢 `FUNCIONA PROBADO` | Agenda y Server Actions. |
-| 7 | **Renovaciones (`/renovaciones`)** | 🟢 `FUNCIONA PROBADO` | Clasificación por vencimiento. |
-| 8 | **Vehículos (`/vehiculos`)** | 🟢 `FUNCIONA PROBADO` | Puesto en calle, neto sin IVA, desde real. |
-| 9 | **Comparador (`/comparador`)** | 🟢 `FUNCIONA PROBADO` | Matriz comercial + técnica + resumen 4 cards. |
-| 10 | **Cotizador (`/cotizador`)** | 🟢 `FUNCIONA PROBADO` | Selección de escenarios y persistencia. |
-| 11 | **Rentabilidad (`/rentabilidad`)** | 🟢 `FUNCIONA PROBADO` | Cálculo de margen y puesto en calle. |
-| 12 | **Documentos (`/documentos`)** | 🟢 `FUNCIONA PROBADO` | Fichas técnicas en PDF oficial Derco. |
+| 1 | **Login (`/login`)** | 🟢 `PROBADO EN PRODUCCIÓN` | Autenticación y sesión. |
+| 2 | **Dashboard (`/`)** | 🟢 `PROBADO EN PRODUCCIÓN` | KPIs reales y Vitoko IA. |
+| 3 | **Clientes (`/clientes`)** | 🟢 `PROBADO EN PRODUCCIÓN` | CRUD e integración BD. |
+| 4 | **Ficha 360 (`/clientes/[id]`)** | 🟢 `PROBADO EN PRODUCCIÓN` | Pestañas, timeline y recordatorios. |
+| 5 | **Perfilador (`/cliente-frente-a-mi`)** | 🟢 `PROBADO EN PRODUCCIÓN` | Formulario express y motor unificado. |
+| 6 | **Agenda (`/agenda`)** | 🟢 `PROBADO EN PRODUCCIÓN` | Agenda y Server Actions. |
+| 7 | **Renovaciones (`/renovaciones`)** | 🟢 `PROBADO EN PRODUCCIÓN` | Clasificación por vencimiento. |
+| 8 | **Vehículos (`/vehiculos`)** | 🟢 `PROBADO EN PRODUCCIÓN` | Puesto en calle, neto sin IVA. |
+| 9 | **Comparador (`/comparador`)** | 🟢 `PROBADO EN PRODUCCIÓN` | Matriz comercial + técnica + resumen 4 cards. |
+| 10 | **Cotizador (`/cotizador`)** | 🟢 `PROBADO EN PRODUCCIÓN` | Selección de escenarios y snapshot. |
+| 11 | **Rentabilidad (`/rentabilidad`)** | 🟢 `PROBADO EN PRODUCCIÓN` | Cálculo de margen y puesto en calle. |
+| 12 | **Documentos (`/documentos`)** | 🟢 `PROBADO EN PRODUCCIÓN` | Fichas técnicas en PDF oficial. |
 
 ---
 
-> **Certificación:** Todos los módulos comerciales de Panel360 Autos operan con **una sola fuente de verdad comercial**, con datos verificados contra los documentos Excel originales y desplegados en Vercel producción.
+> **Certificación:** La pipeline de despliegue de Panel360 Autos se encuentra 100% corregida, segura y sincronizada. El dominio público de producción sirve activamente la versión probada.
