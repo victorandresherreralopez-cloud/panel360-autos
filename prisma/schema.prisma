@@ -375,6 +375,8 @@ model Customer {
   commune            String?
   city               String?
   region             String?
+  emailVerifiedAt    DateTime?
+  emailVerificationToken String?        @unique
   rutLookupConsentAt DateTime?
   rutLookupSource    String?
   statusId           String?

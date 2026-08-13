@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { sendBirthdayGreetingEmail, sendCreditRenewalEmail } from "@/lib/services/email";
 import { sendTelegramMessage } from "@/lib/services/notifications/telegram";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const RENEWAL_THRESHOLDS = [30, 60, 90]; // días antes del vencimiento
+const RENEWAL_THRESHOLDS = [30, 60, 90, 180]; // días antes del vencimiento (incluyendo 180 días)
 
 export async function GET(request: Request) {
   // Validate cron secret to prevent unauthorized invocations
@@ -19,6 +20,7 @@ export async function GET(request: Request) {
   const results: string[] = [];
   let notificationsSent = 0;
 
+  // 1. Credit Renewals (30, 60, 90, 180 days thresholds)
   for (const days of RENEWAL_THRESHOLDS) {
     const targetDate = new Date(today);
     targetDate.setDate(targetDate.getDate() + days);
@@ -30,12 +32,13 @@ export async function GET(request: Request) {
 
     const credits = await prisma.creditContract.findMany({
       where: { lastInstallmentDate: { gte: start, lte: end } },
-      include: { customer: { select: { firstName: true, lastName: true, rut: true, phone: true } } }
+      include: { customer: { select: { id: true, firstName: true, lastName: true, rut: true, phone: true, email: true } } }
     });
 
     for (const credit of credits) {
       const name = `${credit.customer.firstName} ${credit.customer.lastName ?? ""}`.trim();
       const phone = credit.customer.phone ?? "";
+      const email = credit.customer.email;
       const rut = credit.customer.rut ?? "Sin RUT";
 
       const msg = [
@@ -43,6 +46,7 @@ export async function GET(request: Request) {
         `Cliente: *${name}*`,
         `RUT: ${rut}`,
         phone ? `Teléfono: ${phone}` : "",
+        email ? `Email: ${email}` : "",
         `Financiera: ${credit.financialEntity ?? "No registrada"}`,
         credit.installmentAmount ? `Cuota: $${credit.installmentAmount.toLocaleString("es-CL")}` : "",
         `Última cuota: ${credit.lastInstallmentDate?.toLocaleDateString("es-CL") ?? "—"}`,
@@ -50,11 +54,23 @@ export async function GET(request: Request) {
         `💡 Cotiza su renovación en Panel360 Autos`
       ].filter(Boolean).join("\n");
 
+      // Dispatch Telegram notification
       await sendTelegramMessage(msg);
+
+      // Dispatch Resend Email if email present
+      if (email) {
+        await sendCreditRenewalEmail({
+          to: email,
+          customerName: name,
+          vehicleLabel: "tu vehículo actual",
+          installmentNumber: (credit.installments ?? 36) - Math.round((days / 30)),
+          totalInstallments: credit.installments ?? 36
+        });
+      }
 
       await prisma.notificationHistory.create({
         data: {
-          channel: "telegram",
+          channel: "telegram_and_email",
           eventType: "RENOVATION_ALERT",
           message: msg,
           status: "SENT"
@@ -66,14 +82,14 @@ export async function GET(request: Request) {
     }
   }
 
-  // Birthday check (same-day birthdays in Chile)
+  // 2. Birthday check (same-day birthdays in Chile)
   const chileNow = new Date(today.toLocaleString("en-US", { timeZone: "America/Santiago" }));
   const todayMonth = chileNow.getMonth() + 1;
   const todayDay = chileNow.getDate();
 
   const customersWithBirthday = await prisma.customer.findMany({
     where: { birthDate: { not: null } },
-    select: { id: true, firstName: true, lastName: true, phone: true, rut: true, birthDate: true }
+    select: { id: true, firstName: true, lastName: true, phone: true, email: true, rut: true, birthDate: true }
   });
 
   for (const c of customersWithBirthday) {
@@ -86,15 +102,25 @@ export async function GET(request: Request) {
         `Cliente: *${name}*`,
         c.rut ? `RUT: ${c.rut}` : "",
         c.phone ? `Teléfono: ${c.phone}` : "",
+        c.email ? `Email: ${c.email}` : "",
         ``,
         `💡 Es un momento ideal para felicitarlo y mantener la relación comercial.`
       ].filter(Boolean).join("\n");
 
+      // Telegram dispatch
       await sendTelegramMessage(msg);
+
+      // Resend Email dispatch if customer email present
+      if (c.email) {
+        await sendBirthdayGreetingEmail({
+          to: c.email,
+          customerName: name
+        });
+      }
 
       await prisma.notificationHistory.create({
         data: {
-          channel: "telegram",
+          channel: "telegram_and_email",
           eventType: "BIRTHDAY_ALERT",
           message: msg,
           status: "SENT"
@@ -108,9 +134,8 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     ok: true,
-    date: today.toISOString(),
     notificationsSent,
-    renewals: results.filter((r) => r.includes("—")),
-    birthdays: results.filter((r) => r.includes("🎂"))
+    results,
+    executedAt: new Date().toISOString()
   });
 }
