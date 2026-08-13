@@ -96,33 +96,34 @@ Aguardar la autorización del usuario para iniciar la **FASE 2 (Preparar base de
 
 ---
 
-## 3. ETAPA 1 — Evaluación de Arquitectura Neon PostgreSQL + Vercel (Referencia Pyme 360)
+## 3. ETAPA 1 — Corrección de Arquitectura Definitiva: GitHub + Vercel + Supabase PostgreSQL
 
 ### Fecha y hora
-12 de agosto de 2026, 20:56 hrs (Chile)
+12 de agosto de 2026, 21:05 hrs (Chile)
 
 ### Objetivo
-Evaluar y definir la estrategia técnica para llevar la versión idéntica y funcional de Panel360 Autos desde el entorno local (`localhost:3001` con SQLite) hacia la nube en Vercel, tomando como referencia de arquitectura el proyecto Pyme 360 (Next.js + Prisma + Neon PostgreSQL + Vercel).
+Establecer la arquitectura oficial idéntica a Pyme 360 (**GitHub + Vercel + Supabase PostgreSQL**). Descartar formalmente Neon PostgreSQL para mantener consistencia con la pila tecnológica de producción seleccionada por el usuario.
 
-### Cambios realizados
-* **Verificación de Git:** Se confirmó repositorio Git limpio en la rama `master` con el commit de restauración `381e52f`.
-* **Auditoría de Prisma & Vercel Scripts:** Se revisó `prisma/schema.prisma` y los scripts `scripts/build-vercel.mjs`, `scripts/import-vercel-data.mjs` y `scripts/vercel-data-models.mjs`. Se confirmó que la arquitectura existente ya transforma automáticamente el schema a PostgreSQL durante la compilación en Vercel y soporta migración limpia de 32 modelos.
-* **Selección de Neon PostgreSQL:** Se confirmó que Neon PostgreSQL es compatible al 100% con la infraestructura scriptada del proyecto (`DATABASE_URL` para pooler y `DIRECT_URL` para migraciones directas).
-* **Definición de alcance de despliegue:** Se acordó mantener la base SQLite local intacta (`prisma/dev.db`), sin alterar diseño ni funcionalidades, únicamente conectando Neon PostgreSQL para la versión online.
+### Análisis y confirmaciones
+* **Descarte de Neon:** Se descartó oficialmente la migración hacia Neon PostgreSQL.
+* **Confirmación de Supabase:** Se constató que el proyecto Panel360 Autos fue diseñado originalmente y cuenta con la infraestructura scriptada completa para Supabase PostgreSQL (`scripts/build-vercel.mjs`, `scripts/import-vercel-data.mjs`, `VERCEL_DEPLOYMENT.md`).
+* **Verificación de vinculación preexistente:** No existen credenciales ni proyectos de Supabase previamente conectados en `.env`, `.env.local` ni Vercel.
+* **Integración Prisma sin impacto local:** `prisma/schema.prisma` se mantiene en `provider = "sqlite"` para uso local. Durante la compilación en Vercel, `scripts/build-vercel.mjs` genera automáticamente el schema PostgreSQL en `.prisma-vercel/schema.prisma` sin alterar ni destruir `prisma/dev.db`.
+* **Vinculación GitHub:** Repositorio local Git listo para agregar origen en GitHub (`git remote add origin ...`) y sincronizar con Vercel.
 
 ### Estado final
-* **Quedó funcionando:** 
-  * Entorno local `http://localhost:3001` intacto con SQLite.
-  * Base de datos física local `prisma/dev.db` asegurada y respaldada en `backups/2026-08-12/dev-fase1-baseline.db`.
-  * Archivo de exportación JSON listo en `backups/vercel/export-2026-08-12T19-23-57-771Z.json`.
-  * Scripts de Vercel listos y validados.
+* **Entorno local:** `http://localhost:3001` activo con SQLite local intacta (`prisma/dev.db`).
+* **Respaldo JSON:** `backups/vercel/export-2026-08-12T19-23-57-771Z.json` (6 marcas, 68 modelos, 165 versiones, clientes, cotizaciones, etc.).
+* **Repositorio Git:** Limpio.
 
 ### Próximos pasos (ETAPA 2)
-1. Obtener la cadena de conexión de Neon PostgreSQL (`DATABASE_URL` y `DIRECT_URL`).
-2. Configurar las variables de entorno en Vercel.
-3. Ejecutar la importación de datos hacia Neon PostgreSQL.
-4. Realizar el despliegue de producción en Vercel.
-5. Crear el usuario de prueba/demo para muestras públicas.
+1. Vincular el repositorio local a GitHub (`git remote add origin ...` y `git push`).
+2. Obtener `DATABASE_URL` (pooler transaccional puerto 6543) y `DIRECT_URL` (directa puerto 5432) de Supabase.
+3. Configurar variables de entorno en el panel de Vercel.
+4. Ejecutar la importación de datos a Supabase (`npm run data:import:vercel`).
+5. Realizar el despliegue final en Vercel.
+6. Crear el usuario independiente de pruebas DEMO (`demo@panel360autos.cl`).
+
 
 
 
