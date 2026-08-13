@@ -249,13 +249,27 @@ Establecer las conexiones con Supabase PostgreSQL, sincronizar el esquema Prisma
 
 ---
 
+## 8. Auditoría Funcional Real y Diagnóstico Integral de Producción
+
+### Fecha y hora
+13 de agosto de 2026, 09:35 hrs (Chile)
+
+### Objetivo
+Realizar una auditoría técnica y funcional real, pantalla por pantalla, servicio por servicio y flujo por flujo sobre la versión activa desplegada en Vercel, eliminando suposiciones basadas únicamente en compilación `next build` o porcentajes arbitrarios.
+
+### Documento de Referencia Oficial
+Se generó el documento oficial **`AUDITORIA_FUNCIONAL_REAL.md`** en la raíz del proyecto.
+
+### Resumen de Diagnóstico
+1. **Versiones y Commits**: Coinciden 100% en commit `99cf0d2` entre local, GitHub `master` y Vercel Production Deployment (`dpl_BkZVjvmU6Z7G1PTwFCxDhhCKPdRK`).
+2. **Funciones Internas Probadas**: Clientes, Ficha 360, Perfilador Frente a Mí, Cotizador, Cierre de Venta, Motor de Renovaciones, Impuesto Verde, Permiso de Circulación e Importador Inteligente están 100% operativos sobre Supabase PostgreSQL.
+3. **Integraciones Externas Pendientes de Credencial**:
+   - `TELEGRAM_BOT_TOKEN`: Requiere token en Vercel env.
+   - `RESEND_API_KEY`: Requiere key en Vercel env para envíos de correo.
+   - `CUSTOMER_RUT_LOOKUP_URL`: Clasificado como `NO CONFIGURADO` (opera con búsqueda local y validación Módulo 11).
+4. **Hallazgo Crítico de Seguridad**: El repositorio GitHub `https://github.com/victorandresherreralopez-cloud/panel360-autos` se encuentra **PÚBLICO** (`"private": false`). Se recomendó cambiar a **PRIVADO** en la configuración de GitHub.
+
 ### Estado final
 * **Arquitectura Objetivo:** GitHub + Vercel + Supabase PostgreSQL 100% OPERATIVA.
 * **Sistema en Producción:** [https://sistema-comercial-automotriz.vercel.app](https://sistema-comercial-automotriz.vercel.app)
 * **Documentación & Código:** 100% al día en GitHub y `ESTADO_PROYECTO.md`.
-
-
-
-
-
-
