@@ -27,9 +27,9 @@ function getBrandStatus(
 
 export default async function PlanComercialPage() {
   const [brands, prices, campaigns] = await Promise.all([
-    prisma.brand.findMany({ orderBy: { name: "asc" }, include: { models: { include: { versions: { include: { prices: { take: 1, orderBy: { validFrom: "desc" } }, campaigns: { take: 1, orderBy: { startsAt: "desc" } } } } } } } }),
-    prisma.price.findMany({ where: { validUntil: null }, orderBy: { validFrom: "desc" } }),
-    prisma.commercialCampaign.findMany({ where: { status: "ACTIVA" }, orderBy: { startsAt: "desc" } })
+    prisma.brand.findMany({ orderBy: { name: "asc" }, include: { models: { include: { versions: { include: { prices: { take: 1, orderBy: { effectiveFrom: "desc" } }, campaigns: { take: 1, orderBy: { createdAt: "desc" } } } } } } } }),
+    prisma.price.findMany({ where: { effectiveTo: null }, orderBy: { effectiveFrom: "desc" } }),
+    prisma.commercialCampaign.findMany({ where: { status: "VIGENTE" }, orderBy: { createdAt: "desc" } })
   ]);
 
   const now = new Date();
@@ -39,13 +39,13 @@ export default async function PlanComercialPage() {
     const versionIds = versions.map((v) => v.id);
 
     const activePrices = prices.filter((p) => versionIds.includes(p.versionId));
-    const activeCampaigns = campaigns.filter((c) => versionIds.includes(c.versionId));
+    const activeCampaigns = campaigns.filter((c) => c.versionId && versionIds.includes(c.versionId));
 
     const hasCurrentPrice = activePrices.length > 0;
     const hasCurrentCampaign = activeCampaigns.length > 0;
 
-    const lastPriceDate = activePrices[0]?.validFrom ?? null;
-    const lastCampaignDate = activeCampaigns[0]?.startsAt ?? null;
+    const lastPriceDate = activePrices[0]?.effectiveFrom ?? null;
+    const lastCampaignDate = activeCampaigns[0]?.startDate ?? activeCampaigns[0]?.createdAt ?? null;
 
     const lastUpdate = [lastPriceDate, lastCampaignDate]
       .filter(Boolean)

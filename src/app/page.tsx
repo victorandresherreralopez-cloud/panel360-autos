@@ -38,7 +38,7 @@ export default async function DashboardPage() {
   return (
     <div className="grid gap-6">
       <PageHeader
-        eyebrow="ASISTENTE COMERCIAL AUTOMOTRIZ"
+        eyebrow="PANEL360 AUTOS — ASISTENTE COMERCIAL"
         title="Tu copiloto de ventas"
         description="Busca información aprobada, revisa cambios comerciales, compara versiones y mantén seguimiento de clientes desde el mismo tablero."
       />
@@ -58,19 +58,19 @@ export default async function DashboardPage() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <QuickLink href="/cliente-frente-a-mi" label="Cliente frente a mí" detail="Filtros rápidos para recomendar con datos aprobados." />
+        <QuickLink href="/renovaciones" label="🔄 Motor de Renovaciones" detail="Alertas 30/60/90 días antes del vencimiento de crédito." />
+        <QuickLink href="/cierre-venta" label="✅ Cierre de Venta" detail="Registra venta + contrato de crédito con fecha última cuota." />
+        <QuickLink href="/clientes" label="Ficha 360 Clientes" detail="Pestañas: Identificación, Comercial, Historial, Postventa." />
+        <QuickLink href="/admin/importar-clientes" label="📥 Importar Clientes" detail="Excel/CSV con detección automática de columnas." />
         <QuickLink href="/vehiculos" label="Vehículos" detail="Marcas, modelos, versiones, fotos y fichas técnicas." />
         <QuickLink href="/comparador" label="Comparador" detail="Hasta tres versiones, incluso entre marcas." />
         <QuickLink href="/cotizador" label="Cotizador" detail="Guarda una foto histórica de valores usados." />
         <QuickLink href="/rentabilidad" label="Rentabilidad" detail="Hoja editable con CIT, impuesto verde, permiso e impresión." />
         <QuickLink href="/creditos" label="Créditos Amicar" detail="Prepara datos, abre Amicar y guarda el resultado en el CRM." />
-        <QuickLink href="/plan-comercial" label="Plan comercial" detail="Meses, campañas y beneficios sin borrar históricos." />
+        <QuickLink href="/plan-comercial" label="Control Comercial" detail="Semáforo de actualización por marca (verde/amarillo/rojo)." />
         <QuickLink href="/ayudas-comerciales" label="Ayudas comerciales" detail="Bonos compartidos, especiales, tasas y patente gratis." />
         <QuickLink href="/actualizaciones" label="Centro de actualizaciones" detail="Subir archivos o pegar mensajes sin publicar directo." />
-        <QuickLink href="/promociones" label="Promociones de hoy" detail="Campañas vigentes, condiciones y excepciones." />
-        <QuickLink href="/modo-vendedor" label="Modo vendedor" detail="Argumentos basados en equipamiento comprobado." />
-        <QuickLink href="/clientes" label="Mini CRM" detail="Clientes, embudo, actividades y próximos pasos." />
         <QuickLink href="/agenda" label="Mi agenda" detail="Seguimientos, cumpleaños, créditos y entregas." />
-        <QuickLink href="/whatsapp" label="WhatsApp" detail="Genera mensajes editables con datos disponibles." />
         <QuickLink href="/aprender" label="Modo aprender" detail="Siglas, versiones y tarjetas de estudio." />
       </div>
 

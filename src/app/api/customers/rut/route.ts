@@ -118,8 +118,14 @@ export async function GET(request: Request) {
     });
   }
 
-  const candidates = await prisma.customer.findMany({
-    where: { rut: { not: null } },
+  const existing = await prisma.customer.findFirst({
+    where: {
+      OR: [
+        { rut: normalized },
+        { rut: formatted },
+        { rut: rut.trim() }
+      ]
+    },
     select: {
       id: true,
       firstName: true,
@@ -135,7 +141,6 @@ export async function GET(request: Request) {
       updatedAt: true
     }
   });
-  const existing = candidates.find((customer) => rutMatches(customer.rut, normalized));
 
   if (existing) {
     return NextResponse.json({

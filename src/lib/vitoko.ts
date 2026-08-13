@@ -104,25 +104,84 @@ export async function getVitokoBrief(): Promise<VitokoBrief> {
   const now = new Date();
   const weekAgo = new Date(now.getTime() - 7 * dayMs);
   const tomorrow = new Date(now.getTime() + dayMs);
+  const thirtyDays = new Date(now.getTime() + 30 * dayMs);
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [pendingItems, dueReminders, customers, recentQuotes, activeCampaigns, totalVersions, missingCitVersions, commercialAidAlerts] =
-    await Promise.all([
-      prisma.updateItem.count({ where: { status: { in: ["DETECTADO", "EN_REVISION"] } } }),
-      prisma.reminder.count({ where: { status: "PENDIENTE", dueAt: { lte: tomorrow } } }),
-      prisma.customer.count(),
-      prisma.quote.count({ where: { createdAt: { gte: weekAgo } } }),
-      prisma.commercialCampaign.count({ where: { status: "VIGENTE" } }),
-      prisma.version.count({ where: { status: { not: "IGNORADO" } } }),
-      prisma.version.count({
-        where: {
-          status: { not: "IGNORADO" },
-          OR: [{ sapCode: null }, { sapCode: "" }]
-        }
-      }),
-      getCommercialAidAlerts(5)
-    ]);
+  const chileNow = new Date(now.toLocaleString("en-US", { timeZone: "America/Santiago" }));
+  const todayMonth = chileNow.getMonth() + 1;
+  const todayDay = chileNow.getDate();
+
+  const [
+    pendingItems,
+    dueReminders,
+    customers,
+    recentQuotes,
+    activeCampaigns,
+    totalVersions,
+    missingCitVersions,
+    commercialAidAlerts,
+    renewalsNext30,
+    salesThisMonth,
+    customersWithBirthday
+  ] = await Promise.all([
+    prisma.updateItem.count({ where: { status: { in: ["DETECTADO", "EN_REVISION"] } } }),
+    prisma.reminder.count({ where: { status: "PENDIENTE", dueAt: { lte: tomorrow } } }),
+    prisma.customer.count(),
+    prisma.quote.count({ where: { createdAt: { gte: weekAgo } } }),
+    prisma.commercialCampaign.count({ where: { status: "VIGENTE" } }),
+    prisma.version.count({ where: { status: { not: "IGNORADO" } } }),
+    prisma.version.count({ where: { status: { not: "IGNORADO" }, OR: [{ sapCode: null }, { sapCode: "" }] } }),
+    getCommercialAidAlerts(5),
+    prisma.creditContract.count({ where: { lastInstallmentDate: { gte: now, lte: thirtyDays } } }),
+    prisma.sale.count({ where: { saleDate: { gte: firstOfMonth } } }),
+    prisma.customer.findMany({ where: { birthDate: { not: null } }, select: { firstName: true, lastName: true, birthDate: true } })
+  ]);
+
+  // Birthday check
+  const birthdaysToday = customersWithBirthday.filter((c) => {
+    if (!c.birthDate) return false;
+    const bd = new Date(c.birthDate);
+    return bd.getMonth() + 1 === todayMonth && bd.getDate() === todayDay;
+  });
 
   const insights: VitokoInsight[] = [];
+
+  // RENOVACIONES (más urgente al tope)
+  if (renewalsNext30 > 0) {
+    insights.push({
+      id: "renewals-urgent",
+      agent: "Agente de Renovaciones",
+      title: `${renewalsNext30} cliente${renewalsNext30 > 1 ? "s" : ""} con crédito venciendo en 30 días`,
+      detail: `Son oportunidades de renovación caliente. Contacta antes de que llegue a otro concesionario.`,
+      tone: renewalsNext30 >= 5 ? "warn" : "good",
+      actions: [action("Ver Renovaciones", "/renovaciones", "good"), action("Cotizar", "/cotizador", "neutral")]
+    });
+  }
+
+  // CUMPLEAÑOS
+  if (birthdaysToday.length > 0) {
+    const names = birthdaysToday.slice(0, 2).map((c) => c.firstName).join(", ");
+    insights.push({
+      id: "birthday-today",
+      agent: "Agente CRM",
+      title: `🎂 ${birthdaysToday.length === 1 ? `${names} cumple años hoy` : `${birthdaysToday.length} clientes cumplen años hoy`}`,
+      detail: `Es el mejor momento para llamar y mantener la relación. Una felicitación puede marcar la diferencia.`,
+      tone: "good",
+      actions: [action("Ver Clientes", "/clientes", "good"), action("WhatsApp", "/whatsapp", "neutral")]
+    });
+  }
+
+  // VENTAS DEL MES
+  if (salesThisMonth > 0) {
+    insights.push({
+      id: "monthly-sales",
+      agent: "Agente de Venta",
+      title: `${salesThisMonth} venta${salesThisMonth > 1 ? "s" : ""} registrada${salesThisMonth > 1 ? "s" : ""} este mes`,
+      detail: `Cada venta es una futura renovación. Asegúrate de registrar la fecha de última cuota.`,
+      tone: "good",
+      actions: [action("Registrar Cierre", "/cierre-venta", "good")]
+    });
+  }
 
   if (pendingItems) {
     insights.push({
@@ -192,16 +251,21 @@ export async function getVitokoBrief(): Promise<VitokoBrief> {
   const summaryParts = [
     `${totalVersions} versiones cargadas`,
     `${activeCampaigns} campanas vigentes`,
-    `${recentQuotes} cotizaciones de la semana`
+    `${recentQuotes} cotizaciones de la semana`,
+    ...(renewalsNext30 > 0 ? [`${renewalsNext30} renovaciones próximas`] : []),
+    ...(salesThisMonth > 0 ? [`${salesThisMonth} ventas este mes`] : [])
   ];
 
   return {
-    headline: "Vitoko esta mirando la operacion",
+    headline: renewalsNext30 > 0
+      ? `${renewalsNext30} renovacion${renewalsNext30 > 1 ? "es" : ""} urgente${renewalsNext30 > 1 ? "s" : ""} — actua hoy`
+      : "Vitoko esta mirando la operacion",
     summary: summaryParts.join(" | "),
     generatedAt: now.toISOString(),
-    insights: insights.slice(0, 6)
+    insights: insights.slice(0, 7)
   };
 }
+
 
 export async function askVitoko(message: string): Promise<VitokoAnswer> {
   const trimmed = message.trim();
