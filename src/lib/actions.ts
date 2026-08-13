@@ -763,3 +763,65 @@ export async function sendTelegramTest() {
 
   revalidatePath("/configuracion/telegram");
 }
+
+// ─── CIERRE DE VENTA ───────────────────────────────────────────────────────────
+export async function registerSale(formData: FormData) {
+  "use server";
+  const customerId = formData.get("customerId") as string;
+  if (!customerId) return;
+
+  const brandName = (formData.get("brandName") as string)?.trim() ?? "";
+  const modelName = (formData.get("modelName") as string)?.trim() ?? "";
+  const versionName = (formData.get("versionName") as string)?.trim() || null;
+  const agreedPriceRaw = formData.get("agreedPrice") as string;
+  const agreedPrice = agreedPriceRaw ? parseInt(agreedPriceRaw, 10) : null;
+  const saleDateRaw = formData.get("saleDate") as string;
+  const saleDate = saleDateRaw ? new Date(saleDateRaw) : new Date();
+
+  const sale = await prisma.sale.create({
+    data: { customerId, brandName, modelName, versionName, agreedPrice, saleDate, status: "VENDIDO" }
+  });
+
+  // Register associated credit contract if payment is credit
+  const paymentMethod = formData.get("paymentMethod") as string;
+  if (paymentMethod === "CREDITO") {
+    const financialEntity = (formData.get("financialEntity") as string) || null;
+    const installments = formData.get("installments") ? parseInt(formData.get("installments") as string, 10) : null;
+    const installmentAmount = formData.get("installmentAmount") ? parseInt(formData.get("installmentAmount") as string, 10) : null;
+    const financedAmount = formData.get("financedAmount") ? parseInt(formData.get("financedAmount") as string, 10) : null;
+    const downPayment = formData.get("downPayment") ? parseInt(formData.get("downPayment") as string, 10) : null;
+    const firstInstallmentDateRaw = formData.get("firstInstallmentDate") as string;
+    const lastInstallmentDateRaw = formData.get("lastInstallmentDate") as string;
+
+    await prisma.creditContract.create({
+      data: {
+        customerId,
+        financialEntity,
+        purchaseDate: saleDate,
+        installments,
+        installmentAmount,
+        financedAmount,
+        downPayment,
+        firstInstallmentDate: firstInstallmentDateRaw ? new Date(firstInstallmentDateRaw) : null,
+        lastInstallmentDate: lastInstallmentDateRaw ? new Date(lastInstallmentDateRaw) : null,
+        creditType: "NUEVO",
+        endDateSource: "CIERRE_VENTA"
+      }
+    });
+  }
+
+  // Register customer activity
+  await prisma.activity.create({
+    data: {
+      customerId,
+      type: "ENTREGA",
+      description: `Venta registrada: ${brandName} ${modelName} ${versionName ?? ""} — $${agreedPrice?.toLocaleString("es-CL") ?? "—"}`,
+      activityAt: saleDate
+    }
+  });
+
+  revalidatePath("/cierre-venta");
+  revalidatePath(`/clientes/${customerId}`);
+  revalidatePath("/renovaciones");
+}
+

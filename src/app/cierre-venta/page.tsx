@@ -3,6 +3,7 @@ import { CheckCircle2 } from "lucide-react";
 import { PageHeader, Panel } from "@/components/ui";
 import { formatCLP, formatDateTime } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { registerSale } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +40,7 @@ export default async function CierreVentaPage() {
           <p className="text-xs font-black uppercase text-teal-600 dark:text-teal-400">Paso Final del Proceso Comercial</p>
           <h2 className="text-xl font-black text-slate-900 dark:text-white">Registrar Cierre Comercial</h2>
 
-          <form className="mt-5 space-y-4">
+          <form className="mt-5 space-y-4" action={registerSale}>
             <div className="grid gap-4 md:grid-cols-2">
               <label className="grid gap-1.5 md:col-span-2">
                 <span className="text-xs font-black uppercase text-slate-500 dark:text-slate-400">Cliente</span>

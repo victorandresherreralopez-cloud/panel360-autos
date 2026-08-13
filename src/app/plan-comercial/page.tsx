@@ -1,72 +1,140 @@
-import { CommercialAidAlerts } from "@/components/commercial-aid-alerts";
-import { EmptyState, PageHeader, Panel, StatusPill } from "@/components/ui";
-import { formatDate } from "@/lib/format";
-import { getCommercialAidAlerts } from "@/lib/commercial-aids";
+import { PageHeader, Panel, StatusPill } from "@/components/ui";
+import { formatDateTime } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { CheckCircle2, AlertCircle, Clock, TrendingUp } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-export default async function CommercialPlanPage() {
-  const [campaigns, commercialAidAlerts] = await Promise.all([
-    prisma.commercialCampaign.findMany({
-      orderBy: [{ startDate: "desc" }, { title: "asc" }]
-    }),
-    getCommercialAidAlerts(20)
+type TrafficLight = "verde" | "amarillo" | "rojo";
+
+function getBrandStatus(
+  brand: { name: string },
+  hasCurrentPrice: boolean,
+  hasCurrentCampaign: boolean,
+  lastUpdate: Date | null
+): { status: TrafficLight; reason: string } {
+  if (!hasCurrentPrice && !hasCurrentCampaign) return { status: "rojo", reason: "Sin lista de precios ni acciones comerciales activas" };
+
+  const daysSinceUpdate = lastUpdate
+    ? Math.floor((Date.now() - lastUpdate.getTime()) / 86_400_000)
+    : 999;
+
+  if (hasCurrentPrice && hasCurrentCampaign && daysSinceUpdate <= 7) return { status: "verde", reason: "Precios y acciones actualizadas" };
+  if (hasCurrentPrice || hasCurrentCampaign) return { status: "amarillo", reason: `Actualización parcial — hace ${daysSinceUpdate}d` };
+
+  return { status: "rojo", reason: "Sin datos actualizados este mes" };
+}
+
+export default async function PlanComercialPage() {
+  const [brands, prices, campaigns] = await Promise.all([
+    prisma.brand.findMany({ orderBy: { name: "asc" }, include: { models: { include: { versions: { include: { prices: { take: 1, orderBy: { validFrom: "desc" } }, campaigns: { take: 1, orderBy: { startsAt: "desc" } } } } } } } }),
+    prisma.price.findMany({ where: { validUntil: null }, orderBy: { validFrom: "desc" } }),
+    prisma.commercialCampaign.findMany({ where: { status: "ACTIVA" }, orderBy: { startsAt: "desc" } })
   ]);
 
-  const grouped = campaigns.reduce<Record<string, typeof campaigns>>((acc, campaign) => {
-    const key = campaign.startDate
-      ? new Intl.DateTimeFormat("es-CL", { month: "long", year: "numeric", timeZone: "America/Santiago" }).format(campaign.startDate)
-      : "Mes no informado";
-    acc[key] = acc[key] ?? [];
-    acc[key].push(campaign);
-    return acc;
-  }, {});
+  const now = new Date();
+
+  const brandStats = brands.map((brand) => {
+    const versions = brand.models.flatMap((m) => m.versions);
+    const versionIds = versions.map((v) => v.id);
+
+    const activePrices = prices.filter((p) => versionIds.includes(p.versionId));
+    const activeCampaigns = campaigns.filter((c) => versionIds.includes(c.versionId));
+
+    const hasCurrentPrice = activePrices.length > 0;
+    const hasCurrentCampaign = activeCampaigns.length > 0;
+
+    const lastPriceDate = activePrices[0]?.validFrom ?? null;
+    const lastCampaignDate = activeCampaigns[0]?.startsAt ?? null;
+
+    const lastUpdate = [lastPriceDate, lastCampaignDate]
+      .filter(Boolean)
+      .sort((a, b) => (b?.getTime() ?? 0) - (a?.getTime() ?? 0))[0] ?? null;
+
+    const { status, reason } = getBrandStatus(brand, hasCurrentPrice, hasCurrentCampaign, lastUpdate);
+
+    return {
+      brandId: brand.id,
+      brandName: brand.name,
+      status,
+      reason,
+      modelCount: brand.models.length,
+      versionCount: versions.length,
+      activePriceCount: activePrices.length,
+      activeCampaignCount: activeCampaigns.length,
+      lastUpdate
+    };
+  });
+
+  const verde = brandStats.filter((b) => b.status === "verde").length;
+  const amarillo = brandStats.filter((b) => b.status === "amarillo").length;
+  const rojo = brandStats.filter((b) => b.status === "rojo").length;
 
   return (
     <div className="grid gap-6">
-      <PageHeader title="Plan comercial" description="Historico de campanas, bonos y beneficios por mes. No se eliminan planes anteriores." />
+      <PageHeader
+        eyebrow="INTELIGENCIA COMERCIAL"
+        title="Control Comercial por Marca"
+        description="Semáforo de actualización. Verde = precio + acciones vigentes. Amarillo = actualización parcial. Rojo = sin datos."
+      />
 
-      <Panel>
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-black uppercase text-copper">Alertas de ayuda</p>
-            <h2 className="text-xl font-black text-ink">Bonos y acciones detectadas</h2>
-          </div>
-          <StatusPill tone={commercialAidAlerts.length ? "warn" : "neutral"}>{commercialAidAlerts.length} alertas</StatusPill>
-        </div>
-        <CommercialAidAlerts alerts={commercialAidAlerts} compact />
-      </Panel>
-
-      {campaigns.length ? (
-        Object.entries(grouped).map(([month, items]) => (
-          <Panel key={month}>
-            <h2 className="text-xl font-black capitalize text-ink">{month}</h2>
-            <div className="mt-4 grid gap-3">
-              {items.map((campaign) => (
-                <div key={campaign.id} className="rounded-lg border border-graphite/10 bg-white p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-black text-ink">{campaign.title}</p>
-                    <StatusPill>{campaign.status}</StatusPill>
-                  </div>
-                  <p className="mt-1 text-sm font-semibold text-steel">{campaign.benefit ?? "Beneficio pendiente de cargar"}</p>
-                  <p className="mt-2 text-xs font-semibold text-steel">
-                    Inicio: {campaign.startDate ? formatDate(campaign.startDate) : "Fecha inicio no informada"} | Termino:{" "}
-                    {campaign.endDate ? formatDate(campaign.endDate) : "Vigencia no informada"}
-                  </p>
-                </div>
-              ))}
+      {/* KPI SEMÁFOROS */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: "Actualizadas", count: verde, color: "emerald", icon: CheckCircle2 },
+          { label: "Parciales", count: amarillo, color: "amber", icon: AlertCircle },
+          { label: "Sin actualizar", count: rojo, color: "red", icon: Clock }
+        ].map(({ label, count, color, icon: Icon }) => (
+          <div key={label} className={`rounded-xl border p-4 border-${color}-500/30 bg-${color}-50/40 dark:border-${color}-800 dark:bg-${color}-950/30`}>
+            <div className="flex items-center gap-2">
+              <Icon className={`h-4 w-4 text-${color}-600 dark:text-${color}-400`} />
+              <p className={`text-xs font-black uppercase text-${color}-700 dark:text-${color}-300`}>{label}</p>
             </div>
-          </Panel>
-        ))
-      ) : (
-        <EmptyState
-          title="No hay planes comerciales cargados."
-          description="Sube PDF, PPTX, Excel o pega comunicaciones para revisar y aprobar campanas."
-          actionHref="/actualizaciones"
-          actionLabel="Cargar plan"
-        />
-      )}
+            <p className="mt-2 text-4xl font-black text-slate-900 dark:text-white">{count}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* BRAND TABLE */}
+      <Panel>
+        <h2 className="text-xl font-black text-slate-900 dark:text-white">Estado por Marca</h2>
+        <div className="mt-4 space-y-2">
+          {brandStats.map((b) => (
+            <div
+              key={b.brandId}
+              className="flex flex-col gap-2 rounded-xl border border-slate-100 bg-slate-50/40 p-4 dark:border-slate-800 dark:bg-slate-900/60 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="flex items-center gap-3">
+                {/* Semáforo */}
+                <div className={`h-3 w-3 rounded-full shrink-0 ${b.status === "verde" ? "bg-emerald-500" : b.status === "amarillo" ? "bg-amber-400" : "bg-red-500"}`} />
+                <div>
+                  <p className="font-black text-slate-900 dark:text-white">{b.brandName}</p>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{b.reason}</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
+                <span>{b.modelCount} modelos</span>
+                <span>·</span>
+                <span>{b.versionCount} versiones</span>
+                <span>·</span>
+                <span className={b.activePriceCount > 0 ? "text-teal-600 dark:text-teal-400" : "text-red-500"}>
+                  {b.activePriceCount} precios vigentes
+                </span>
+                <span>·</span>
+                <span className={b.activeCampaignCount > 0 ? "text-teal-600 dark:text-teal-400" : "text-slate-400"}>
+                  {b.activeCampaignCount} campañas
+                </span>
+                {b.lastUpdate && (
+                  <>
+                    <span>·</span>
+                    <span>Último: {formatDateTime(b.lastUpdate)}</span>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Panel>
     </div>
   );
 }
