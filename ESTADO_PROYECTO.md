@@ -91,8 +91,39 @@ Asegurar la integridad total del sistema local antes de realizar cualquier ajust
 Aguardar la autorización del usuario para iniciar la **FASE 2 (Preparar base de datos online en Supabase)**.
 
 ### Punto de restauración
-* **Nombre del commit:** `docs: actualizar bitacora con respaldo de seguridad Fase 1`
-* **Hash del commit:** `2768ee55cae5fcfb939e6a3d906bd5fa2c92e76f`
+* **Nombre del commit:** `docs: registrar respaldo de seguridad Fase 1 en bitacora`
+* **Hash del commit:** `381e52f`
+
+---
+
+## 3. ETAPA 1 — Evaluación de Arquitectura Neon PostgreSQL + Vercel (Referencia Pyme 360)
+
+### Fecha y hora
+12 de agosto de 2026, 20:56 hrs (Chile)
+
+### Objetivo
+Evaluar y definir la estrategia técnica para llevar la versión idéntica y funcional de Panel360 Autos desde el entorno local (`localhost:3001` con SQLite) hacia la nube en Vercel, tomando como referencia de arquitectura el proyecto Pyme 360 (Next.js + Prisma + Neon PostgreSQL + Vercel).
+
+### Cambios realizados
+* **Verificación de Git:** Se confirmó repositorio Git limpio en la rama `master` con el commit de restauración `381e52f`.
+* **Auditoría de Prisma & Vercel Scripts:** Se revisó `prisma/schema.prisma` y los scripts `scripts/build-vercel.mjs`, `scripts/import-vercel-data.mjs` y `scripts/vercel-data-models.mjs`. Se confirmó que la arquitectura existente ya transforma automáticamente el schema a PostgreSQL durante la compilación en Vercel y soporta migración limpia de 32 modelos.
+* **Selección de Neon PostgreSQL:** Se confirmó que Neon PostgreSQL es compatible al 100% con la infraestructura scriptada del proyecto (`DATABASE_URL` para pooler y `DIRECT_URL` para migraciones directas).
+* **Definición de alcance de despliegue:** Se acordó mantener la base SQLite local intacta (`prisma/dev.db`), sin alterar diseño ni funcionalidades, únicamente conectando Neon PostgreSQL para la versión online.
+
+### Estado final
+* **Quedó funcionando:** 
+  * Entorno local `http://localhost:3001` intacto con SQLite.
+  * Base de datos física local `prisma/dev.db` asegurada y respaldada en `backups/2026-08-12/dev-fase1-baseline.db`.
+  * Archivo de exportación JSON listo en `backups/vercel/export-2026-08-12T19-23-57-771Z.json`.
+  * Scripts de Vercel listos y validados.
+
+### Próximos pasos (ETAPA 2)
+1. Obtener la cadena de conexión de Neon PostgreSQL (`DATABASE_URL` y `DIRECT_URL`).
+2. Configurar las variables de entorno en Vercel.
+3. Ejecutar la importación de datos hacia Neon PostgreSQL.
+4. Realizar el despliegue de producción en Vercel.
+5. Crear el usuario de prueba/demo para muestras públicas.
+
 
 
 
