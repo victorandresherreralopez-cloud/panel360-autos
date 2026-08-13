@@ -78,6 +78,7 @@ function clamp(value: number, min: number, max: number) {
 
 export default async function ClientInFrontPage({ searchParams }: { searchParams: SearchParams }) {
   const customerId = firstParam(searchParams, "customerId");
+  const preferredBrandId = firstParam(searchParams, "brandId");
   const budgetRaw = firstParam(searchParams, "budget");
   const budget = parseMoney(budgetRaw);
   const segment = firstParam(searchParams, "type");
@@ -91,18 +92,17 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
   const financing = firstParam(searchParams, "financing");
   const tradeIn = firstParam(searchParams, "tradeIn");
   const profileNotes = firstParam(searchParams, "profileNotes");
-  const hasFilters = [customerId, budgetRaw, segment, use, fuel, box, traction, priority, familySize, purchaseTiming, financing, tradeIn, profileNotes].some(Boolean);
+  const hasFilters = [customerId, preferredBrandId, budgetRaw, segment, use, fuel, box, traction, priority, familySize, purchaseTiming, financing, tradeIn, profileNotes].some(Boolean);
 
-  const [versions, customers, commercialAidAlerts] = await Promise.all([
+  const [versions, customers, commercialAidAlerts, allBrands] = await Promise.all([
     prisma.version.findMany({
       where: { status: { not: "IGNORADO" } },
       include: {
         brand: true,
         model: true,
-        // Incluir precios VIGENTES primero, con fallback a DETECTADO si no hay
         prices: {
           where: { status: { in: ["VIGENTE", "DETECTADO"] } },
-          orderBy: [{ status: "asc" }, { effectiveFrom: "desc" }] // DETECTADO < VIGENTE alfabéticamente
+          orderBy: [{ status: "asc" }, { effectiveFrom: "desc" }]
         }
       },
       orderBy: [{ brand: { name: "asc" } }, { model: { name: "asc" } }, { commercialOrder: "asc" }, { name: "asc" }]
@@ -112,8 +112,10 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
       orderBy: { updatedAt: "desc" },
       take: 80
     }),
-    getCommercialAidAlerts(120)
+    getCommercialAidAlerts(120),
+    prisma.brand.findMany({ orderBy: { name: "asc" } })
   ]);
+
 
   const selectedCustomer = customers.find((customer) => customer.id === customerId);
 
@@ -220,9 +222,10 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
             );
         } else if (segLower === "sedan") {
           segmentMatch =
-            includesAny(rawSegment, ["sedan", "sedán", "berlina"]) ||
-            includesAny(haystack, ["sedan", "sedán"]);
+            includesAny(rawSegment, ["sedan", "sedán", "berlina", "pasajeros", "auto"]) ||
+            includesAny(haystack, ["sedan", "sedán", "alsvin", "dzire", "mazda 3", "mazda3", "mazda 6", "mazda6", "v7", "v3", "eado"]);
         } else if (segLower === "hatchback") {
+
           segmentMatch =
             includesAny(rawSegment, ["hatchback", "hb", "compacto"]) ||
             includesAny(haystack, ["hatchback"]);
@@ -247,7 +250,13 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
         }
       }
 
-      // ── 2. Presupuesto Máximo Obligatorio ────────────────────────────────────
+      // ── 2. Filtro Obligatorio de Marca ─────────────────────────────────────
+      if (preferredBrandId && version.brandId !== preferredBrandId) {
+        hardFiltered = true;
+        hardFilterReasons.push("No es la marca seleccionada");
+      }
+
+      // ── 3. Presupuesto Máximo Obligatorio ────────────────────────────────────
       if (budget) {
         if (!price) {
           hardFiltered = true;
@@ -260,8 +269,7 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
         }
       }
 
-
-      // 3. Transmisión Obligatoria
+      // ── 4. Transmisión Obligatoria ──────────────────────────────────────────
       if (box && box !== "Indiferente") {
         const wantsAutomatic = normalizeText(box).includes("automat");
         const isAutomatic = includesAny(haystack, ["at", "cvt", "dct", "amt", "automatica", "aut"]);
@@ -319,7 +327,15 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
         addReason(reasons, "puedes mostrar tecnologia en sala");
       }
 
+      // PENALIZACIÓN DFSK: Ordenar siempre al final según instrucción comercial
+      const isDfsk = normalizeText(version.brand.name).includes("dfsk");
+      if (isDfsk) {
+        score -= 40;
+        warnings.push("Marca DFSK ponderada al final por política de preferencia comercial.");
+      }
+
       if (financing.includes("Credito") && financingPrice) {
+
         score += 8;
         addReason(reasons, "tiene precio o foco de financiamiento cargado");
       }
@@ -361,13 +377,24 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
 
   const compliantVehicles = scored
     .filter((item) => Boolean(item.price) && !item.hardFiltered)
-    .sort((a, b) => b.score - a.score || (a.price ?? Number.MAX_SAFE_INTEGER) - (b.price ?? Number.MAX_SAFE_INTEGER));
-
+    .sort((a, b) => {
+      // Regla Comercial Obligatoria: DFSK SIEMPRE AL FINAL
+      const isDfskA = normalizeText(a.version.brand.name).includes("dfsk");
+      const isDfskB = normalizeText(b.version.brand.name).includes("dfsk");
+      if (isDfskA !== isDfskB) return isDfskA ? 1 : -1;
+      return b.score - a.score || (a.price ?? Number.MAX_SAFE_INTEGER) - (b.price ?? Number.MAX_SAFE_INTEGER);
+    });
 
   const alternativeVehicles = scored
     .filter((item) => item.price && item.hardFiltered)
-    .sort((a, b) => (a.price ?? 0) - (b.price ?? 0))
+    .sort((a, b) => {
+      const isDfskA = normalizeText(a.version.brand.name).includes("dfsk");
+      const isDfskB = normalizeText(b.version.brand.name).includes("dfsk");
+      if (isDfskA !== isDfskB) return isDfskA ? 1 : -1;
+      return (a.price ?? 0) - (b.price ?? 0);
+    })
     .slice(0, 5);
+
 
   const displayVehicles = compliantVehicles;
   const top = displayVehicles[0] ?? alternativeVehicles[0];
@@ -400,7 +427,7 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
 
       <Panel>
         <form className="grid gap-5">
-          <div className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr]">
+          <div className="grid gap-3 lg:grid-cols-4">
             <label className="grid gap-1.5">
               <span className="text-xs font-black uppercase text-steel">Cliente</span>
               <select className="input" name="customerId" defaultValue={customerId}>
@@ -408,6 +435,17 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
                 {customers.map((customer) => (
                   <option key={customer.id} value={customer.id}>
                     {customer.firstName} {customer.lastName ?? ""} | {customer.status?.name ?? "Sin estado"}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1.5">
+              <span className="text-xs font-black uppercase text-steel">Marca preferida</span>
+              <select className="input" name="brandId" defaultValue={preferredBrandId}>
+                <option value="">Todas las marcas</option>
+                {allBrands.map((brand) => (
+                  <option key={brand.id} value={brand.id}>
+                    {brand.name}
                   </option>
                 ))}
               </select>
@@ -424,6 +462,7 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
             </label>
             <label className="grid gap-1.5">
               <span className="text-xs font-black uppercase text-steel">Cuando compra</span>
+
               <select className="input" name="purchaseTiming" defaultValue={purchaseTiming}>
                 <option value="">Momento de compra</option>
                 {timings.map((item) => (

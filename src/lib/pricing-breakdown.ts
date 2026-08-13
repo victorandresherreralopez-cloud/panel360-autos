@@ -42,7 +42,8 @@ export function getPricingBreakdown(params: {
 
   const listPrice = listPriceObj?.amount ?? null;
   const cashPrice = cashPriceObj?.amount ?? campaignPriceObj?.amount ?? listPrice;
-  const financingPrice = financingPriceObj?.amount ?? (cashPrice ? Math.round(cashPrice * 0.94) : null);
+  const financingPrice = financingPriceObj?.amount ?? null;
+
 
   const brandBonus = listPrice && cashPrice && listPrice > cashPrice ? listPrice - cashPrice : 0;
   const financingBonus = cashPrice && financingPrice && cashPrice > financingPrice ? cashPrice - financingPrice : 0;

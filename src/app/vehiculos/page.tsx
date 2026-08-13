@@ -50,9 +50,19 @@ export default async function VehiclesPage({ searchParams }: { searchParams?: { 
     id: brand.id,
     name: brand.name,
     models: brand.models.map((model) => {
-      const prices = model.versions.flatMap((version) => version.prices.filter((price) => price.priceType === "LIST"));
-      const fromPrice = prices.length ? Math.min(...prices.map((price) => price.amount)) : null;
+      const versionBestPrices = model.versions
+        .map((version) => {
+          const listPrice = version.prices.find((p) => p.priceType === "LIST")?.amount;
+          const campaignPrice = version.prices.find((p) => p.priceType === "CAMPAIGN")?.amount;
+          const cashPrice = version.prices.find((p) => p.priceType === "CASH")?.amount;
+          const financingPrice = version.prices.find((p) => p.priceType === "FINANCING")?.amount;
+          return campaignPrice ?? cashPrice ?? financingPrice ?? listPrice;
+        })
+        .filter((price): price is number => price != null && price > 0);
+
+      const fromPrice = versionBestPrices.length ? Math.min(...versionBestPrices) : null;
       const cleanModel = normalizeText(model.name).replace(/[^a-z0-9]/g, "");
+
       const modelSheet =
         (model as any).technicalSheet ??
         technicalSheets.find((sheet) => sheet.brandId === brand.id && normalizeText(sheet.originalName).replace(/[^a-z0-9]/g, "").includes(cleanModel)) ??
