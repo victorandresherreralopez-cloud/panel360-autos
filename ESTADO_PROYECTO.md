@@ -345,3 +345,63 @@ Se generó el documento oficial **`AUDITORIA_FUNCIONAL_REAL.md`** en la raíz de
 * **Base de datos local**: SQLite en sincronía total con esquema Prisma.
 * **Próximo despliegue**: Sincronización a GitHub `master` y Vercel Production.
 
+---
+
+## 11. Sincronización Segura de Esquema Supabase y Recuperación de Producción
+
+### Fecha y hora
+13 de agosto de 2026, 17:00 hrs (Chile)
+
+### Problema detectado
+Vercel reportaba `PrismaClientKnownRequestError code: P2022` en runtime:
+- `The column models.canonicalSegment does not exist in the current database.`
+- `The column customers.emailVerifiedAt does not exist in the current database.`
+
+Rutas afectadas: `/`, `/cliente-frente-a-mi`, `/cotizador`.
+
+### Causa raíz
+El pipeline de `build-vercel.mjs` tenía `prisma db push` automático que fue retirado para evitar flags destructivos. La BD Supabase PostgreSQL quedó con el esquema antiguo mientras el código ya utilizaba las nuevas columnas.
+
+### Solución implementada (NO-DESTRUCTIVA)
+
+1. **Auditoría física con `src/lib/compare_schemas.ts`**: Comparación de `schema.prisma` contra `information_schema.columns` de Supabase. Resultado: 4 estructuras faltantes exactas.
+
+2. **Migración versionada `prisma/migrations/20260813_sync_production_schema/migration.sql`**:
+   - `ALTER TABLE customers ADD COLUMN IF NOT EXISTS "emailVerifiedAt" TIMESTAMPTZ`
+   - `ALTER TABLE models ADD COLUMN IF NOT EXISTS "canonicalSegment" TEXT`
+   - `ALTER TABLE models ADD COLUMN IF NOT EXISTS "technicalSheetId" TEXT`
+   - `CREATE TABLE IF NOT EXISTS commercial_offers (...)`
+
+3. **Backfill determinístico con `src/lib/apply_migration_and_backfill.ts`**:
+   - 68 modelos clasificados: `SEDAN`, `SUV`, `PICKUP`, `HATCHBACK`, `COMERCIAL`.
+
+4. **Verificación post-migración**: `TOTAL ESTRUCTURAS FALTANTES EN SUPABASE: 0`
+
+5. **Build-vercel.mjs refactorizado**: Sin `prisma db push` automático.
+
+### Evidencia de producción — commit `0ab9016` — PROBADO EN PRODUCCIÓN
+
+| Punto REGLA DE PRODUCCIÓN | Estado |
+|---|---|
+| 1. Commit Git local `0ab9016` | ✅ Generado |
+| 2. Commit GitHub `main` y `master` | ✅ Sincronizados |
+| 3. Vercel deployment HTTP 200 | ✅ READY |
+| 4. Dominio `sistema-comercial-automotriz.vercel.app` | ✅ Activo |
+| 5. Prueba funcional 7 rutas empíricas | ✅ TODAS HTTP 200 |
+
+**Rutas verificadas en producción:**
+
+| Ruta | HTTP | Error de App |
+|---|---|---|
+| `/` | 200 | ❌ Ninguno |
+| `/login` | 200 | ❌ Ninguno |
+| `/cliente-frente-a-mi` | 200 | ❌ Ninguno |
+| `/vehiculos` | 200 | ❌ Ninguno |
+| `/cotizador` | 200 | ❌ Ninguno |
+| `/comparador` | 200 | ❌ Ninguno |
+| `/clientes` | 200 | ❌ Ninguno |
+
+### Estado final
+**🟢 PRODUCCIÓN RECUPERADA Y OPERATIVA — Error P2022 eliminado en todas las rutas.**
+
+
