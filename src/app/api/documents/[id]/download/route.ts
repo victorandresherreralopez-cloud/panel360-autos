@@ -16,8 +16,8 @@ export async function GET(_request: Request, { params }: { params: { id: string 
     }
   });
 
-  if (!document || document.type !== "FICHA TECNICA DERCO" || !document.storedPath) {
-    return NextResponse.json({ error: "Ficha tecnica no disponible." }, { status: 404 });
+  if (!document || !document.storedPath) {
+    return NextResponse.json({ error: "Documento no disponible." }, { status: 404 });
   }
 
   const file = await readStoredDocument(document.storedPath);

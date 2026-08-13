@@ -75,6 +75,14 @@ export async function readStoredDocument(storedPath: string) {
     };
   }
 
+  if (storedPath.startsWith("/")) {
+    const fullPublicPath = path.join(process.cwd(), "public", storedPath);
+    return {
+      buffer: await fs.readFile(fullPublicPath),
+      contentType: undefined
+    };
+  }
+
   const filePath = assertInsideWorkspace(storedPath);
   return {
     buffer: await fs.readFile(filePath),

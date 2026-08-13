@@ -172,11 +172,11 @@ export async function getUtmForDate(value: string | Date) {
 export async function calculateGreenTax({
   citCode,
   salePriceWithVat,
-  calculationDate
+  calculationDate = new Date()
 }: {
   citCode: string;
   salePriceWithVat: number;
-  calculationDate: string;
+  calculationDate?: string | Date;
 }) {
   const records = await getSiiVehicleRecords();
   const record = records.get(normalizeCit(citCode));

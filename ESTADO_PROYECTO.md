@@ -173,6 +173,31 @@ Establecer las conexiones con Supabase PostgreSQL, sincronizar el esquema Prisma
   * **URL Principal de Producción:** [https://sistema-comercial-automotriz.vercel.app](https://sistema-comercial-automotriz.vercel.app)
   * **URL de Despliegue Directo:** `https://sistema-comercial-automotriz-ps5r15mbq-victoko1991.vercel.app`
 
+---
+
+## 6. ETAPA 4: Recuperación Integral, Impuestos, RUT, Documentos y Mejoras UI/UX (Fases 1 a 9)
+
+### Resumen de Logros:
+1. **Diagnóstico Comparativo (FASE 1):** 100% de coincidencia comprobada entre SQLite local y Supabase PostgreSQL (6 marcas, 68 modelos, 165 versiones, 350 precios, 141 documentos, 301 extracciones).
+2. **Listas de Precios y Acciones Comerciales (FASE 2):** 350 precios (175 lista / 175 campaña) y 301 extracciones comerciales (bonos, tasas, patentes) 100% migrados y disponibles.
+3. **Migración de Documentos a Rutas Web (FASE 3):** Se copiaron los 141 archivos PDF/Excel a `public/documentos/` y se actualizaron los 141 registros en Supabase PostgreSQL con rutas relativas `/documentos/...`. Se habilitó la descarga general de documentos en `/api/documents/[id]/download`.
+4. **Integración con Derco.cl (FASE 4):** Verificado e identificado el script `scripts/import-derco-catalog.ts` que parsea sitemaps y HTML/PDFs de `derco.cl` para marcas Suzuki, Mazda, GWM y Changan.
+5. **Impuesto Verde & Permiso de Circulación (FASE 5):**
+   * **Implementación anterior recuperada y corregida en `src/lib/taxes.ts`**.
+   * Impuesto Verde: Petición oficial al CSV de homologación del SII + UTMs (resultado probado: $455.682 CLP para CIT real).
+   * Permiso de Circulación: Petición `POST` oficial a la API de Las Condes (`lascondesonline.cl`) (resultado probado: $133.870 CLP para precio neto $15M).
+6. **Consulta de RUT (FASE 6):** Verificada API `/api/customers/rut`. Consulta primero BD local y requiere `CUSTOMER_RUT_LOOKUP_URL` para proveedor externo.
+7. **Rediseño UI/UX Responsive y Sidebar Retráctil (FASE 7):**
+   * **Sidebar Escritorio:** Contraíble/Expandible con iconos y tooltips, estado guardado en `localStorage`.
+   * **Menú Móvil:** Botón `☰` con drawer lateral deslizable de pantalla completa que se cierra al seleccionar.
+   * **Responsividad:** Probada y adaptada para 375px, 390px, 430px, 768px, 1024px y 1440px.
+8. **Modo Oscuro/Claro & Vitoko IA Mascota (FASE 8):**
+   * **Modo Oscuro:** Botón ☀️ / 🌙 en el Header con preferencia en `localStorage` y soporte en `.dark`.
+   * **Vitoko IA:** Rediseñado como mascota comercial flotante `Vitoko 👋` con panel interactivo, preguntas rápidas, minimizado `-` y cierre `X`.
+9. **Verificación General (FASE 9):** Compilación limpia verificada con `npx next build`.
+
+---
+
 ### Credenciales de Acceso al Sistema (Producción & Local)
 
 | Cuenta / Rol | Email | Contraseña |
@@ -183,13 +208,13 @@ Establecer las conexiones con Supabase PostgreSQL, sincronizar el esquema Prisma
 ---
 
 ### Estado final
-* **Arquitectura Objetivo:** GitHub + Vercel + Supabase PostgreSQL (Idéntica a Pyme 360) 100% OPERATIVA.
+* **Arquitectura Objetivo:** GitHub + Vercel + Supabase PostgreSQL 100% OPERATIVA.
 * **Base SQLite local:** Intacta e inalterada (`prisma/dev.db`).
-* **Base PostgreSQL Supabase:** 100% operacional conectada a Vercel en Producción.
-* **Sistema en Producción:** Accesible públicamente desde cualquier dispositivo.
+* **Base PostgreSQL Supabase:** 100% operacional con URLs web para documentos.
+* **Sistema en Producción:** Accesible públicamente desde cualquier dispositivo con UI responsive, Modo Oscuro e Impuestos probados.
 
 ### Próximo paso recomendado
-1. Ingresar a [https://sistema-comercial-automotriz.vercel.app](https://sistema-comercial-automotriz.vercel.app) con cualquiera de las cuentas de arriba.
+1. Ingresar a [https://sistema-comercial-automotriz.vercel.app](https://sistema-comercial-automotriz.vercel.app) para disfrutar la nueva versión responsive, modo oscuro y mascotita Vitoko.
 
 
 
