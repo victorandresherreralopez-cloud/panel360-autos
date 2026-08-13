@@ -124,6 +124,54 @@ Establecer la arquitectura oficial idéntica a Pyme 360 (**GitHub + Vercel + Sup
 5. Realizar el despliegue final en Vercel.
 6. Crear el usuario independiente de pruebas DEMO (`demo@panel360autos.cl`).
 
+---
+
+## 4. ETAPA 2 — Conexión, Importación de Datos a Supabase PostgreSQL y Despliegue en Vercel
+
+### Fecha y hora
+12 de agosto de 2026, 21:25 hrs (Chile)
+
+### Objetivo
+Establecer las conexiones con Supabase PostgreSQL, sincronizar el esquema Prisma de 32 tablas, importar la totalidad de los datos locales sin pérdidas y configurar las variables de entorno en Vercel para el despliegue online.
+
+### Cambios y actividades realizadas
+* **Integración de Scripts:** Se ajustaron los scripts `scripts/import-vercel-data.mjs` y `scripts/build-vercel.mjs` para manejar correctamente rutas de archivos con espacios en Windows y generar un cliente `@prisma/client-vercel` aislado sin interferir con la base local SQLite.
+* **Creación de Tablas en Supabase:** Se ejecutó `prisma db push` creando las 32 tablas en Supabase PostgreSQL.
+* **Importación de Datos Completada:** Se ejecutó `npm run data:import:vercel` utilizando la conexión directa a Supabase. Se poblaron exitosamente:
+  * 1 usuario administrativo inicial (`appUser`)
+  * 6 marcas (`brand`)
+  * 68 modelos (`vehicleModel`)
+  * 165 versiones (`version`)
+  * 141 documentos (`document`)
+  * 8 actualizaciones (`update`)
+  * 8 importaciones (`documentImport`)
+  * 301 extracciones de texto (`documentExtraction`)
+  * 350 precios vigentes (`price`)
+  * 350 registros de historial de precios (`priceHistory`)
+  * 13 estados de cliente (`customerStatus`)
+  * 8 orígenes de cliente (`customerOrigin`)
+  * 352 registros de auditoría (`auditLog`)
+  * 13 acrónimos automotrices (`acronym`)
+  * 9 configuraciones de notificación (`notificationSetting`)
+  * 13 preguntas de estudio (`studyQuestion`)
+* **Configuración en Vercel:** Se enviaron y guardaron exitosamente las variables de entorno para Producción en el panel de Vercel:
+  * `DATABASE_URL` (Pooler transaccional Supabase puerto 6543)
+  * `DIRECT_URL` (Conexión directa Supabase puerto 5432)
+  * `AUTH_SECRET` (Firma segura de sesiones HMAC SHA-256)
+  * `APP_TIMEZONE` (`America/Santiago`)
+* **Despliegue Vercel:** Se inició el proceso de compilación y despliegue a producción en Vercel (`npx vercel --prod`).
+
+### Estado final
+* **Base SQLite local:** 100% intacta e inalterada (`prisma/dev.db`).
+* **Base PostgreSQL Supabase:** 100% sincronizada e importada con los mismos datos locales.
+* **Vercel:** Variables de entorno registradas y compilación enviada a producción.
+
+### Próximo paso recomendado
+1. Confirmar el enlace de producción entregado por Vercel.
+2. Crear el repositorio `panel360-autos` en GitHub en la cuenta `victorandresherreralopez-cloud` y realizar `git push`.
+3. Crear la cuenta de demostración independiente `demo@panel360autos.cl`.
+
+
 
 
 

@@ -39,13 +39,18 @@ const targetSchemaPath = path.join(targetDir, "schema.prisma");
 const sourceSchema = readFileSync(sourceSchemaPath, "utf8");
 
 mkdirSync(targetDir, { recursive: true });
-const postgresSchema = sourceSchema.replace(
-  /datasource db \{\s+provider = "sqlite"\s+url\s+= env\("DATABASE_URL"\)\s+\}/,
-  `datasource db {
+const postgresSchema = sourceSchema
+  .replace(
+    'generator client {\n  provider = "prisma-client-js"\n}',
+    'generator client {\n  provider = "prisma-client-js"\n  output   = "../node_modules/@prisma/client-vercel"\n}'
+  )
+  .replace(
+    /datasource db \{\s+provider = "sqlite"\s+url\s+= env\("DATABASE_URL"\)\s+\}/,
+    `datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")${directUrl ? '\n  directUrl = env("DIRECT_URL")' : ""}
 }`
-);
+  );
 
 if (directUrl && !process.env.DIRECT_URL) {
   process.env.DIRECT_URL = directUrl;
@@ -53,17 +58,23 @@ if (directUrl && !process.env.DIRECT_URL) {
 
 writeFileSync(targetSchemaPath, postgresSchema);
 
-execFileSync("npx", ["prisma", "db", "push", `--schema=${targetSchemaPath}`, "--skip-generate"], {
+execFileSync("npx", ["prisma", "db", "push", `--schema="${targetSchemaPath}"`, "--skip-generate"], {
   shell: process.platform === "win32",
   stdio: "inherit"
 });
-execFileSync("npx", ["prisma", "generate", `--schema=${targetSchemaPath}`], {
+execFileSync("npx", ["prisma", "generate", `--schema="${targetSchemaPath}"`], {
   shell: process.platform === "win32",
   stdio: "inherit"
 });
 
-const { PrismaClient } = await import("@prisma/client");
-const prisma = new PrismaClient();
+const { PrismaClient } = await import("../node_modules/@prisma/client-vercel/index.js");
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: directUrl || databaseUrl
+    }
+  }
+});
 
 async function createMany(delegateName, rows) {
   if (!rows?.length) return;
@@ -74,19 +85,28 @@ async function createMany(delegateName, rows) {
 }
 
 async function main() {
+  console.log("Cargando datos desde el respaldo JSON...");
   const raw = await fs.readFile(path.resolve(inputPath), "utf8");
   const payload = JSON.parse(raw);
   const data = payload.data ?? {};
 
+  console.log("Limpiando tablas en Supabase PostgreSQL...");
   for (const [, delegateName] of [...dataModels].reverse()) {
-    await prisma[delegateName].deleteMany();
+    if (prisma[delegateName]) {
+      await prisma[delegateName].deleteMany();
+    }
   }
 
+  console.log("Insertando registros...");
   for (const [key, delegateName] of dataModels) {
-    await createMany(delegateName, data[key] ?? []);
+    const rows = data[key] ?? [];
+    if (rows.length > 0 && prisma[delegateName]) {
+      console.log(`- Importando ${rows.length} registros en ${delegateName}...`);
+      await createMany(delegateName, rows);
+    }
   }
 
-  console.log("Import a PostgreSQL listo.");
+  console.log("¡Importación a PostgreSQL Supabase completada con éxito!");
 }
 
 main()

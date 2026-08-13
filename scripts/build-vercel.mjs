@@ -58,8 +58,8 @@ function run(command, args) {
 }
 
 if (process.env.VERCEL_SKIP_DB_PUSH !== "1") {
-  run("npx", ["prisma", "db", "push", `--schema=${targetSchemaPath}`, "--skip-generate"]);
+  run("npx", ["prisma", "db", "push", `--schema="${targetSchemaPath}"`, "--skip-generate"]);
 }
 
-run("npx", ["prisma", "generate", `--schema=${targetSchemaPath}`]);
+run("npx", ["prisma", "generate", `--schema="${targetSchemaPath}"`]);
 run("npx", ["next", "build"]);
