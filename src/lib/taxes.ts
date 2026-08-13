@@ -274,6 +274,8 @@ export async function fetchLasCondesPermit({
   return {
     amount,
     invoiceDate: `${day}/${month}/${year}`,
-    netPrice: Math.round(netPrice)
+    netPrice: Math.round(netPrice),
+    isEstimated: false,
+    message: "Valor oficial obtenido directamente desde la API de Las Condes."
   };
 }

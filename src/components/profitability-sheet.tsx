@@ -331,7 +331,11 @@ export function ProfitabilitySheet({ vehicles, today, initialState, syncKey, hid
       const result = await response.json();
       if (!response.ok || !result.ok) throw new Error(result.message ?? "No se pudo consultar Las Condes.");
       update("circulationPermit", result.amount);
-      setPermitStatus(`Permiso consultado en Las Condes: ${formatCLP(result.amount)}`);
+      if (result.isEstimated) {
+        setPermitStatus(`⚠️ VALOR ESTIMADO REFERENCIAL: ${formatCLP(result.amount)} (${result.message})`);
+      } else {
+        setPermitStatus(`✅ VALOR OFICIAL CONFIRMADO (Las Condes API): ${formatCLP(result.amount)}`);
+      }
     } catch (error) {
       setPermitStatus(error instanceof Error ? error.message : "No se pudo consultar Las Condes.");
     } finally {
@@ -343,7 +347,7 @@ export function ProfitabilitySheet({ vehicles, today, initialState, syncKey, hid
     setLoadingGreenTax(true);
     setGreenTaxStatus("");
     try {
-      if (!selectedVehicle?.citCode) throw new Error("Esta version no tiene Codigo CIT cargado.");
+      if (!selectedVehicle?.citCode) throw new Error("Esta versión no tiene Código CIT cargado.");
       const response = await fetch("/api/taxes/green", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -357,9 +361,9 @@ export function ProfitabilitySheet({ vehicles, today, initialState, syncKey, hid
       if (!response.ok || !result.ok) throw new Error(result.message ?? "No se pudo calcular el impuesto verde.");
       update("greenTax", result.amountClp);
       const detail = result.exempt
-        ? "posible exencion"
-        : `${Number(result.taxUtm).toFixed(4)} UTM, UTM ${formatCLP(result.utm)}`;
-      setGreenTaxStatus(`Imp. Fuentes Movs. calculado: ${formatCLP(result.amountClp)} (${detail})`);
+        ? "Exento de Impuesto Verde"
+        : `${Number(result.taxUtm).toFixed(4)} UTM (UTM: ${formatCLP(result.utm)})`;
+      setGreenTaxStatus(`✅ VALOR OFICIAL CONFIRMADO (Listado SII): ${formatCLP(result.amountClp)} — ${detail}`);
     } catch (error) {
       setGreenTaxStatus(error instanceof Error ? error.message : "No se pudo calcular el impuesto verde.");
     } finally {

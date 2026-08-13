@@ -198,6 +198,48 @@ Establecer las conexiones con Supabase PostgreSQL, sincronizar el esquema Prisma
 
 ---
 
+## 7. ETAPA 5: Informe Derco.cl, Distinción de Impuestos y Alternativas RUT Chile (Fases 4, 5, 5B y 6)
+
+### 📌 FASE 4 — Documentación Técnica de `import-derco-catalog.ts`
+1. **Qué información obtiene:**
+   * Parsea el sitemap público de Derco (`sitemap-vehicles.xml`).
+   * Descarga la página HTML de vehículos para marcas autorizadas (Suzuki, Mazda, GWM, Changan, Deepal, DFSK).
+   * Parsea la tabla "Detalle de Versiones": Nombre del modelo, versiones, imágenes, equipamiento (cilindrada, potencia, torque, tracción, transmisión, combustible, consumo, airbags, ADAS, climatizador, sunroof).
+   * Extrae los precios de lista y campaña.
+   * Descarga las fichas técnicas en PDF.
+2. **Qué información NO obtiene:**
+   * Esquemas de financiamiento interno (tasas Amicar, tablas de plazos, comisiones de ejecutivos).
+   * Margen de concesionario o costo de compra.
+   * Inventario / Stock físico por concesionario.
+3. **Cómo evita duplicados:**
+   * Utiliza `upsert` por nombre en Marcas, Modelos y Versiones.
+   * Verifica la existencia de precios idénticos activos para evitar duplicación.
+4. **Detección de Cambios e Historial de Precios:**
+   * Si cambia un precio, marca el precio anterior como `SUSTITUIDO` (`effectiveTo = now()`), crea el nuevo precio `ACTIVO` y genera un registro en `PriceHistory` con monto anterior, nuevo monto y diferencia.
+5. **Comportamiento ante Cambios de Estructura / Modelos:**
+   * Si un modelo desaparece de Derco, el registro histórico permanece en Panel360 DB.
+   * Si la tabla HTML de Derco cambia, el parser omite la página de forma segura sin romper la base de datos.
+
+---
+
+### 📌 FASE 5 & 5B — Distinción Visual: Impuesto Verde & Permiso de Circulación
+* **Implementación:** Se actualizaron la API `/api/taxes/permit` y el componente `ProfitabilitySheet`.
+* **Distinción Clara en UI:**
+  * ✅ `VALOR OFICIAL CONFIRMADO` (Verde): Se muestra cuando la consulta a SII o Las Condes API responde con datos de origen oficial.
+  * ⚠️ `VALOR ESTIMADO REFERENCIAL` (Ámbar): Se activa discretamente si el servicio externo no responde o si se usa una estimación referencial. Nunca se presenta un estimado como confirmado.
+
+---
+
+### 📌 FASE 6 — Informe de Alternativas Técnicamente Viables para RUT en Chile
+1. **Alternativa A — Servicio API SII (Autorizado / Clave Única):**
+   * Consulta datos de contribuyentes en SII (razón social, giro, dirección tributaria). 100% legal y oficial.
+2. **Alternativa B — Buró Comercial (Equifax / TransUnion API):**
+   * Integración B2B oficial para verificación de identidad y dirección de personas naturales/jurídicas.
+3. **Alternativa C — Microservicio Proxy Interno:**
+   * Backend seguro expuesto en la variable `CUSTOMER_RUT_LOOKUP_URL` con token `CUSTOMER_RUT_LOOKUP_TOKEN`.
+
+---
+
 ### Credenciales de Acceso al Sistema (Producción & Local)
 
 | Cuenta / Rol | Email | Contraseña |
@@ -209,12 +251,8 @@ Establecer las conexiones con Supabase PostgreSQL, sincronizar el esquema Prisma
 
 ### Estado final
 * **Arquitectura Objetivo:** GitHub + Vercel + Supabase PostgreSQL 100% OPERATIVA.
-* **Base SQLite local:** Intacta e inalterada (`prisma/dev.db`).
-* **Base PostgreSQL Supabase:** 100% operacional con URLs web para documentos.
-* **Sistema en Producción:** Accesible públicamente desde cualquier dispositivo con UI responsive, Modo Oscuro e Impuestos probados.
-
-### Próximo paso recomendado
-1. Ingresar a [https://sistema-comercial-automotriz.vercel.app](https://sistema-comercial-automotriz.vercel.app) para disfrutar la nueva versión responsive, modo oscuro y mascotita Vitoko.
+* **Sistema en Producción:** [https://sistema-comercial-automotriz.vercel.app](https://sistema-comercial-automotriz.vercel.app)
+* **Documentación & Código:** 100% al día en GitHub y `ESTADO_PROYECTO.md`.
 
 
 
