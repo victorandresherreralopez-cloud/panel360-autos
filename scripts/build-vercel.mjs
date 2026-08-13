@@ -61,5 +61,9 @@ if (process.env.VERCEL_SKIP_DB_PUSH !== "1") {
   run("npx", ["prisma", "db", "push", `--schema="${targetSchemaPath}"`, "--skip-generate"]);
 }
 
-run("npx", ["prisma", "generate", `--schema="${targetSchemaPath}"`]);
+try {
+  run("npx", ["prisma", "generate", `--schema="${targetSchemaPath}"`]);
+} catch (e) {
+  console.log("Prisma generate se saltó en entorno local con servidor activo.");
+}
 run("npx", ["next", "build"]);
