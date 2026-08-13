@@ -83,23 +83,34 @@ function compactDetail(lines: string[], fallback: string) {
 function classify(item: { category: string; rawText: string; confidence: string }) {
   const normalized = normalizeText(item.rawText);
   const results: CommercialAidClassification[] = [];
-  const hasSharedBonus =
-    /bonos?\s+amicar|co-financiad|aporte\s+ces|aporte\s+marca/.test(normalized) ||
-    (/bono\s+marca/.test(normalized) && /bono\s+financ/.test(normalized));
-
-  if (hasSharedBonus) {
+  const isClosingSharedBonus = /bono\s+cierre|cierre\s+compartido|aporte\s+ces|aporte\s+concesionario/.test(normalized);
+  if (isClosingSharedBonus) {
     results.push({
-      key: "shared-bonus",
-      title: "Bono compartido detectado",
-      detail:
-        compactDetail(
-          moneyLines(item.rawText, ["Bono marca", "Bono Financ.", "Aporte Marca", "Aporte CES", "Aporte total"]),
-          sentenceWith(item.rawText, /co-financiad|aporte\s+ces|aporte\s+marca|bonos?\s+amicar|bono\s+financ/i) ||
-            "Se detecto informacion de bono compartido o cofinanciado."
-        ),
+      key: "cierre-compartido",
+      title: "🤝 Bono Cierre Compartido (CES + Marca)",
+      detail: compactDetail(
+        moneyLines(item.rawText, ["Aporte CES", "Aporte Marca", "Aporte Concesionario", "Aporte Fabricante", "Aporte total"]),
+        sentenceWith(item.rawText, /aporte\s+ces|aporte\s+marca|bono\s+cierre|cierre\s+compartido/i) ||
+          "Accion de cierre de negocio con aporte co-financiado entre concesionario (CES) y marca."
+      ),
       tone: "warn"
     });
   }
+
+  const isCreditBonus = (/bono\s+marca/.test(normalized) && /bono\s+financ/.test(normalized)) || /bonos?\s+amicar|co-financiad/.test(normalized);
+  if (isCreditBonus && !isClosingSharedBonus) {
+    results.push({
+      key: "credit-bonus",
+      title: "💳 Bono Marca + Crédito",
+      detail: compactDetail(
+        moneyLines(item.rawText, ["Bono marca", "Bono Financ.", "Bono credito"]),
+        sentenceWith(item.rawText, /bono\s+marca|bono\s+financ|amicar/i) ||
+          "Bono de financiamiento compuesto por descuento marca y descuento credito."
+      ),
+      tone: "good"
+    });
+  }
+
 
   if (/bono\s+especial/.test(normalized)) {
     results.push({

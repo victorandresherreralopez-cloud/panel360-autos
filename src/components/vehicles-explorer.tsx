@@ -397,9 +397,9 @@ export function VehiclesExplorer({
                             <tr key={version.id}>
                               <td className="font-black text-ink">
                                 <div>{version.name}</div>
-                                {breakdown.sharedBonusAlert ? (
-                                  <span className="mt-1 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-900 border border-amber-300">
-                                    ⭐ Bono Compartido
+                                {breakdown.creditBonusAlert ? (
+                                  <span className="mt-1 inline-block rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-900 border border-sky-300">
+                                    💳 Bono Marca + Crédito
                                   </span>
                                 ) : null}
                                 {breakdown.isCommercialVehicle ? (
@@ -407,6 +407,7 @@ export function VehiclesExplorer({
                                     🛻 Pickup / Facturable
                                   </span>
                                 ) : null}
+
                               </td>
                               <td>
                                 {version.sapCode ? (

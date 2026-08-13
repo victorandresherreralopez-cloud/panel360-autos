@@ -764,12 +764,13 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
                         <strong className="text-graphite">{formatCLP(breakdown.estimatedKeyInHandCash)}</strong>
                       </div>
 
-                      {/* ALERTAS DE BONOS COMPARTIDOS */}
-                      {breakdown.sharedBonusAlert ? (
-                        <p className="mt-2 rounded bg-amber-100 p-1.5 text-[11px] font-bold text-amber-900 border border-amber-300">
-                          ⭐ {breakdown.sharedBonusAlert}
+                      {/* ALERTAS DE BONO MARCA + CREDITO */}
+                      {breakdown.creditBonusAlert ? (
+                        <p className="mt-2 rounded bg-sky-100 p-1.5 text-[11px] font-bold text-sky-900 border border-sky-300">
+                          💳 {breakdown.creditBonusAlert}
                         </p>
                       ) : null}
+
 
                       <div className="mt-4 grid gap-2">
                         {item.reasons.map((reason) => (

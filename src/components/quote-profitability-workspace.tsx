@@ -250,14 +250,15 @@ export function QuoteProfitabilityWorkspace({ vehicles, customers, today, initia
                 </div>
               </div>
 
-              {/* ALERTAS DE BONOS COMPARTIDOS Y CAMPAÑAS */}
-              {breakdown.sharedBonusAlert || breakdown.campaignAlerts.length ? (
+              {/* ALERTAS DE BONOS MARCA + CREDITO Y CAMPAÑAS */}
+              {breakdown.creditBonusAlert || breakdown.campaignAlerts.length ? (
                 <div className="mt-4 grid gap-2">
-                  {breakdown.sharedBonusAlert ? (
-                    <div className="rounded-lg bg-amber-500/20 border border-amber-500/40 p-3 text-xs font-bold text-amber-300 flex items-center gap-2">
-                      ⭐ {breakdown.sharedBonusAlert}
+                  {breakdown.creditBonusAlert ? (
+                    <div className="rounded-lg bg-sky-500/20 border border-sky-500/40 p-3 text-xs font-bold text-sky-300 flex items-center gap-2">
+                      💳 Bono Marca + Crédito: {breakdown.creditBonusAlert}
                     </div>
                   ) : null}
+
                   {breakdown.campaignAlerts.map((alert) => (
                     <div key={alert} className="rounded bg-white/5 px-3 py-1.5 text-xs text-slate-300">
                       • {alert}

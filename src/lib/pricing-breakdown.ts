@@ -18,7 +18,7 @@ export type CommercialPriceInfo = {
   estimatedPermit: number;
   estimatedKeyInHandCash: number | null;
   estimatedKeyInHandFinancing: number | null;
-  sharedBonusAlert: string | null;
+  creditBonusAlert: string | null;
   campaignAlerts: string[];
 };
 
@@ -43,7 +43,6 @@ export function getPricingBreakdown(params: {
   const listPrice = listPriceObj?.amount ?? null;
   const cashPrice = cashPriceObj?.amount ?? campaignPriceObj?.amount ?? listPrice;
   const financingPrice = financingPriceObj?.amount ?? null;
-
 
   const brandBonus = listPrice && cashPrice && listPrice > cashPrice ? listPrice - cashPrice : 0;
   const financingBonus = cashPrice && financingPrice && cashPrice > financingPrice ? cashPrice - financingPrice : 0;
@@ -85,12 +84,12 @@ export function getPricingBreakdown(params: {
     ? financingPrice + estimatedFreight + estimatedRegistration + estimatedGreenTax + estimatedPermit
     : null;
 
-  // Campaign alerts & shared bonuses
+  // Campaign alerts & credit bonuses
   const campaignAlerts: string[] = [];
-  let sharedBonusAlert: string | null = null;
+  let creditBonusAlert: string | null = null;
 
   if (brandBonus > 0 && financingBonus > 0) {
-    sharedBonusAlert = `Bono Compartido Detectado: Bono Marca (${formatCLP(brandBonus)}) + Bono Financiamiento (${formatCLP(financingBonus)})`;
+    creditBonusAlert = `Bono Marca (${formatCLP(brandBonus)}) + Bono Crédito (${formatCLP(financingBonus)})`;
   } else if (brandBonus > 0) {
     campaignAlerts.push(`Bono Marca Vigente: ${formatCLP(brandBonus)}`);
   } else if (financingBonus > 0) {
@@ -123,7 +122,8 @@ export function getPricingBreakdown(params: {
     estimatedPermit,
     estimatedKeyInHandCash,
     estimatedKeyInHandFinancing,
-    sharedBonusAlert,
+    creditBonusAlert,
     campaignAlerts
   };
 }
+
