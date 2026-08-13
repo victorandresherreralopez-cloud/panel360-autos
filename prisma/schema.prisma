@@ -53,7 +53,9 @@ model VehicleModel {
   brandId            String
   name               String
   segment            String?
+  canonicalSegment   String?              // SEDAN | SUV | PICKUP | HATCHBACK | CITYCAR | COMERCIAL
   fuelTypes          String?
+
   transmissions      String?
   tractions          String?
   imagePath          String?

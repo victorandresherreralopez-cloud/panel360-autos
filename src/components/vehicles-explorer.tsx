@@ -426,24 +426,35 @@ export function VehiclesExplorer({
                                     Bono marca: -{formatCLP(breakdown.brandBonus)}
                                   </div>
                                 ) : null}
+                                {breakdown.isCommercialVehicle && breakdown.cashNetPrice ? (
+                                  <div className="text-[10px] font-bold text-emerald-800">
+                                    Neto (Factura): {formatCLP(breakdown.cashNetPrice)} + IVA
+                                  </div>
+                                ) : null}
                                 {breakdown.estimatedKeyInHandCash ? (
-                                  <div className="text-[10px] text-steel">
-                                    Llave en mano: {formatCLP(breakdown.estimatedKeyInHandCash)}
+                                  <div className="mt-0.5 text-[10px] text-steel">
+                                    Puesto en calle: {formatCLP(breakdown.estimatedKeyInHandCash)}
                                   </div>
                                 ) : null}
                               </td>
                               <td>
-                                <div className="font-black text-emerald-700">{formatCLP(breakdown.financingPrice)}</div>
-                                {breakdown.totalBonus > 0 ? (
-                                  <div className="text-[11px] font-semibold text-emerald-700">
-                                    Bonos totales: -{formatCLP(breakdown.totalBonus)}
-                                  </div>
-                                ) : null}
-                                {breakdown.estimatedKeyInHandFinancing ? (
-                                  <div className="text-[10px] text-steel">
-                                    Llave en mano: {formatCLP(breakdown.estimatedKeyInHandFinancing)}
-                                  </div>
-                                ) : null}
+                                {breakdown.financingPrice ? (
+                                  <>
+                                    <div className="font-black text-emerald-700">{formatCLP(breakdown.financingPrice)}</div>
+                                    {breakdown.totalBonus > 0 ? (
+                                      <div className="text-[11px] font-semibold text-emerald-700">
+                                        Bonos totales: -{formatCLP(breakdown.totalBonus)}
+                                      </div>
+                                    ) : null}
+                                    {breakdown.estimatedKeyInHandFinancing ? (
+                                      <div className="mt-0.5 text-[10px] text-steel">
+                                        Puesto en calle: {formatCLP(breakdown.estimatedKeyInHandFinancing)}
+                                      </div>
+                                    ) : null}
+                                  </>
+                                ) : (
+                                  <span className="text-xs font-semibold text-steel">Sin bono crédito</span>
+                                )}
                               </td>
                               <td>
                                 {breakdown.isCommercialVehicle && breakdown.cashNetPrice ? (

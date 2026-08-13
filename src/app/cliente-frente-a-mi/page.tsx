@@ -197,21 +197,26 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
       // cómo esté escrito el nombre del modelo.
       if (segment && segment !== "Indiferente") {
         const segLower = normalizeText(segment);
+        const canonical = (version.model.canonicalSegment ?? "").toUpperCase();
         const rawSegment = normalizeText(version.model.segment ?? "");
         let segmentMatch = false;
 
-        if (segLower === "pickup") {
-          // Pickup: prioridad al segmento de DB, luego haystack
+        if (segLower === "sedan") {
           segmentMatch =
+            canonical === "SEDAN" ||
+            includesAny(rawSegment, ["sedan", "sedán", "berlina", "pasajeros", "auto"]) ||
+            includesAny(haystack, ["sedan", "sedán", "alsvin", "dzire", "mazda 3", "mazda3", "mazda 6", "mazda6", "v7", "v3", "eado"]);
+        } else if (segLower === "pickup") {
+          segmentMatch =
+            canonical === "PICKUP" ||
             includesAny(rawSegment, ["pickup", "pick up", "pick-up", "camioneta"]) ||
             includesAny(haystack, ["pickup", "pick up", "pick-up", "camioneta", "cabina doble", "poer", "wingle", "hunter", "hilux", "dmax", "ranger", "d-max", "triton", "bt-50", "bt 50"]);
         } else if (segLower === "suv") {
-          // SUV / Crossover: incluye SUV Compacto, SUV Mediano, Crossover, Station Wagon, etc.
-          // Excluye pickups aunque tengan palabras parecidas
-          const isPickup = includesAny(rawSegment, ["pickup", "camioneta"]) ||
+          const isPickup = canonical === "PICKUP" || includesAny(rawSegment, ["pickup", "camioneta"]) ||
             includesAny(haystack, ["pickup", "camioneta", "pick up", "poer", "wingle", "hunter", "bt-50"]);
           segmentMatch =
             !isPickup && (
+              canonical === "SUV" ||
               includesAny(rawSegment, ["suv", "crossover", "todoterreno", "todo terreno", "station wagon", "s.w."]) ||
               includesAny(haystack, [
                 "suv", "crossover", "todoterreno", "station wagon", "s.w.",
@@ -220,25 +225,21 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
                 "500", "580", "600", "glory", "fengon"
               ])
             );
-        } else if (segLower === "sedan") {
-          segmentMatch =
-            includesAny(rawSegment, ["sedan", "sedán", "berlina", "pasajeros", "auto"]) ||
-            includesAny(haystack, ["sedan", "sedán", "alsvin", "dzire", "mazda 3", "mazda3", "mazda 6", "mazda6", "v7", "v3", "eado"]);
         } else if (segLower === "hatchback") {
-
           segmentMatch =
+            canonical === "HATCHBACK" ||
             includesAny(rawSegment, ["hatchback", "hb", "compacto"]) ||
-            includesAny(haystack, ["hatchback"]);
+            includesAny(haystack, ["hatchback", "swift", "alto", "celerio"]);
         } else if (segLower === "citycar") {
           segmentMatch =
             includesAny(rawSegment, ["citycar", "city car", "microcar", "urbano"]) ||
             includesAny(haystack, ["citycar", "city car", "alto", "celerio", "s-presso", "spresso"]);
         } else if (segLower === "comercial") {
           segmentMatch =
+            canonical === "COMERCIAL" ||
             includesAny(rawSegment, ["comercial", "furgon", "van", "cargo"]) ||
-            includesAny(haystack, ["furgon", "van", "comercial", "cargo"]);
+            includesAny(haystack, ["furgon", "van", "comercial", "cargo", "truck"]);
         } else {
-          // Fallback genérico: buscar texto exacto del segmento elegido
           segmentMatch = rawSegment.includes(segLower) || haystack.includes(segLower);
         }
 
@@ -249,6 +250,7 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
           hardFilterReasons.push(`No es ${segment}`);
         }
       }
+
 
       // ── 2. Filtro Obligatorio de Marca ─────────────────────────────────────
       if (preferredBrandId && version.brandId !== preferredBrandId) {

@@ -1,3 +1,4 @@
+import { evaluateCommercialOffers } from "@/lib/commercial-offer-engine";
 import { VEHICLE_COMPARE_FIELDS } from "@/lib/constants";
 import { formatCLP, missing } from "@/lib/format";
 
@@ -29,22 +30,22 @@ type VersionForCompare = {
   cargoCapacity: string | null;
   warranty: string | null;
   equipmentSummary: string | null;
-  prices: { priceType: string; amount: number; status: string }[];
+  prices: { priceType: string; amount: number; status: string; channel?: string }[];
   brand: { name: string };
-  model: { name: string };
+  model: { name: string; segment?: string | null; canonicalSegment?: string | null };
 };
 
-function latestPrice(version: VersionForCompare, type: string) {
-  return version.prices.find((price) => price.priceType === type && price.status === "VIGENTE")?.amount ?? null;
-}
-
 export function toComparableVersion(version: VersionForCompare) {
-  const priceList = latestPrice(version, "LIST");
-  const priceCampaign = latestPrice(version, "CAMPAIGN");
-  const priceCash = latestPrice(version, "CASH");
-  const priceFinancing = latestPrice(version, "FINANCING");
-  const priceFinal = priceCampaign ?? priceCash ?? priceFinancing ?? priceList;
-  const campaignDiscount = priceList !== null && priceFinal !== null ? Math.max(priceList - priceFinal, 0) : null;
+  const offer = evaluateCommercialOffers({
+    brandName: version.brand.name,
+    modelName: version.model.name,
+    versionName: version.name,
+    segment: version.model.segment,
+    canonicalSegment: version.model.canonicalSegment,
+    equipmentSummary: version.equipmentSummary,
+    sapCode: version.sapCode,
+    prices: version.prices
+  });
 
   return {
     id: version.id,
@@ -52,20 +53,29 @@ export function toComparableVersion(version: VersionForCompare) {
     modelName: version.model.name,
     versionName: version.name,
     label: `${version.brand.name} ${version.model.name} ${version.name}`,
-    priceList,
-    priceFinal,
-    priceCampaign,
-    priceCash,
-    priceFinancing,
-    campaignDiscount,
-    finalPriceSource:
-      priceCampaign !== null
-        ? "Precio campana"
-        : priceCash !== null
-          ? "Precio contado"
-          : priceFinancing !== null
-            ? "Precio financiamiento"
-            : "Precio lista",
+
+    // Precios por Escenario
+    priceList: offer.listPrice,
+    priceCash: offer.cashPrice,
+    priceFinancing: offer.financingPrice,
+    priceCampaign: offer.campaignPrice,
+    priceDercoCl: offer.dercoClPrice,
+    pricePresale: offer.presalePrice,
+    priceFinal: offer.bestEligiblePrice,
+    finalPriceSource: offer.eligibleScenarioName,
+
+    // Puesto en Calle (Llave en Mano)
+    onTheRoad: offer.onTheRoad,
+
+    // Bonos Cliente
+    clientBonuses: offer.clientBonuses,
+
+    // Herramienta Interna de Cierre (Bono Cierre Compartido CES + Marca)
+    closingTool: offer.closingTool,
+
+    // Features / Badges
+    features: offer.features,
+
     sapCode: version.sapCode,
     modelYear: version.modelYear,
     engine: version.engine,
@@ -98,92 +108,108 @@ export type ComparableVersion = ReturnType<typeof toComparableVersion>;
 export type ComparisonRowStatus = "same" | "different" | "partial" | "missing";
 
 function hasComparableValue(value: string | number | null | undefined) {
-  return value !== null && value !== undefined && String(value).trim() !== "";
-}
-
-function comparableKey(value: string | number | null | undefined) {
-  if (!hasComparableValue(value)) return "";
-  return typeof value === "number" ? String(value) : String(value).trim().toLowerCase();
-}
-
-function formatComparableValue(key: keyof ComparableVersion, value: string | number | null | undefined) {
-  if (!hasComparableValue(value)) {
-    if (key === "campaignDiscount") return "Sin bono informado";
-    return missing(value);
-  }
-
-  if (typeof value === "number") return formatCLP(value);
-  return missing(value);
-}
-
-function rowStatus(values: Array<string | number | null | undefined>): ComparisonRowStatus {
-  const available = values.filter(hasComparableValue).map(comparableKey);
-  const missingCount = values.length - available.length;
-  const unique = new Set(available);
-
-  if (!available.length) return "missing";
-  if (unique.size > 1) return "different";
-  if (missingCount > 0) return "partial";
-  return "same";
+  if (value === null || value === undefined) return false;
+  if (typeof value === "string" && !value.trim()) return false;
+  return true;
 }
 
 export function rowStatusLabel(status: ComparisonRowStatus) {
+  if (status === "same") return "Identico";
   if (status === "different") return "Diferente";
-  if (status === "partial") return "Falta dato";
-  if (status === "missing") return "Sin dato";
-  return "Igual";
+  if (status === "partial") return "Incompleto";
+  return "Sin datos";
 }
 
 export function buildComparisonRows(versions: ComparableVersion[]) {
-  return VEHICLE_COMPARE_FIELDS.map(([label, key]) => {
-    const values = versions.map((version) => version[key]);
-    const status = rowStatus(values);
-    const printable = values.map((value) => formatComparableValue(key, value));
-    return { label, key, values: printable, status, different: status === "different" };
+  if (!versions.length) return [];
+
+  const rawFields = [
+    // PRECIOS
+    { key: "priceList", label: "Precio Lista Oficial", formatter: (val: any) => (val ? formatCLP(val) : "Sin lista") },
+    { key: "priceCash", label: "Precio Contado", formatter: (val: any) => (val ? formatCLP(val) : "No aplica") },
+    { key: "priceFinancing", label: "Precio Financiamiento", formatter: (val: any) => (val ? formatCLP(val) : "Sin bono credito") },
+    { key: "priceCampaign", label: "Precio Campana", formatter: (val: any) => (val ? formatCLP(val) : "Sin campana") },
+    { key: "priceDercoCl", label: "Precio Derco.cl", formatter: (val: any) => (val ? formatCLP(val) : "Sin reserva web") },
+
+    // PUESTO EN CALLE
+    { key: "onTheRoad.greenTax", label: "Impuesto Verde (Est.)", formatter: (_: any, v: ComparableVersion) => formatCLP(v.onTheRoad.greenTax) },
+    { key: "onTheRoad.registrationPermit", label: "Inscripcion / RNVM", formatter: (_: any, v: ComparableVersion) => formatCLP(v.onTheRoad.registrationPermit) },
+    { key: "onTheRoad.freight", label: "Flete Estimado", formatter: (_: any, v: ComparableVersion) => formatCLP(v.onTheRoad.freight) },
+    { key: "onTheRoad.circulatingPermit", label: "Permiso Circulacion (Est.)", formatter: (_: any, v: ComparableVersion) => formatCLP(v.onTheRoad.circulatingPermit) },
+    { key: "onTheRoad.totalOnTheRoadCash", label: "TOTAL Puesto en Calle (Contado)", formatter: (_: any, v: ComparableVersion) => (v.onTheRoad.totalOnTheRoadCash ? formatCLP(v.onTheRoad.totalOnTheRoadCash) : "Pendiente") },
+
+    // BENEFICIOS CLIENTE
+    { key: "clientBonuses.brandBonus", label: "Bono Marca", formatter: (_: any, v: ComparableVersion) => (v.clientBonuses.brandBonus ? formatCLP(v.clientBonuses.brandBonus) : "Sin bono") },
+    { key: "clientBonuses.financingBonus", label: "Bono Financiamiento", formatter: (_: any, v: ComparableVersion) => (v.clientBonuses.financingBonus ? formatCLP(v.clientBonuses.financingBonus) : "Sin bono") },
+
+    // HERRAMIENTA INTERNA DE CIERRE
+    { key: "closingTool.totalClosingSupportCash", label: "Apoyo Cierre Compartido (CES + Marca)", formatter: (_: any, v: ComparableVersion) => (v.closingTool.hasClosingSupport ? formatCLP(v.closingTool.totalClosingSupportCash) : "Sin fondo cierre") },
+
+    // FICHA TÉCNICA Y EQUIPAMIENTO
+    ...VEHICLE_COMPARE_FIELDS.map((f) => ({ key: f.key, label: f.label, formatter: (val: any) => missing(val) }))
+  ];
+
+  return rawFields.map((field) => {
+    const getValue = (version: ComparableVersion) => {
+      const parts = field.key.split(".");
+      let val: any = version;
+      for (const p of parts) val = val?.[p];
+      return val;
+    };
+
+    const values = versions.map((v) => getValue(v));
+    const formattedValues = versions.map((v) => field.formatter(getValue(v), v));
+
+    const validValues = values.filter(hasComparableValue);
+    let status: ComparisonRowStatus = "missing";
+
+    if (validValues.length === 0) {
+      status = "missing";
+    } else if (validValues.length < versions.length) {
+      status = "partial";
+    } else {
+      const first = JSON.stringify(validValues[0]);
+      const allEqual = validValues.every((val) => JSON.stringify(val) === first);
+      status = allEqual ? "same" : "different";
+    }
+
+    return {
+      key: field.key,
+      label: field.label,
+      values: formattedValues,
+      rawValues: values,
+      status
+    };
   });
 }
 
-export function priceDifferenceLabel(from?: number | null, to?: number | null) {
-  if (from === null || from === undefined || to === null || to === undefined) {
-    return "Diferencia de precio no disponible en las fuentes cargadas";
-  }
-
-  const difference = to - from;
-  if (difference === 0) return "Mismo precio registrado";
-  if (difference > 0) return `Cuesta ${formatCLP(Math.abs(difference))} mas`;
-  return `${formatCLP(Math.abs(difference))} menos`;
-}
-
 export function buildPriceSummary(versions: ComparableVersion[]) {
-  const priced = versions
-    .map((version) => ({ version, amount: version.priceFinal ?? version.priceList }))
-    .filter((item): item is { version: ComparableVersion; amount: number } => item.amount !== null);
+  if (!versions.length) return null;
 
-  if (!priced.length) {
-    return {
-      cheapest: "Sin precios vigentes",
-      spread: "No hay precios para comparar",
-      bestDiscount: "Sin bono informado"
-    };
+  let cheapestCash = versions[0];
+  let cheapestFinancing = versions[0];
+  let lowestOnTheRoad = versions[0];
+  let highestBonus = versions[0];
+
+  for (const v of versions) {
+    if ((v.priceCash ?? Number.MAX_SAFE_INTEGER) < (cheapestCash.priceCash ?? Number.MAX_SAFE_INTEGER)) cheapestCash = v;
+    if ((v.priceFinancing ?? Number.MAX_SAFE_INTEGER) < (cheapestFinancing.priceFinancing ?? Number.MAX_SAFE_INTEGER)) cheapestFinancing = v;
+    if ((v.onTheRoad.totalOnTheRoadCash ?? Number.MAX_SAFE_INTEGER) < (lowestOnTheRoad.onTheRoad.totalOnTheRoadCash ?? Number.MAX_SAFE_INTEGER)) lowestOnTheRoad = v;
+    if (v.clientBonuses.totalClientBonus > highestBonus.clientBonuses.totalClientBonus) highestBonus = v;
   }
-
-  const cheapest = priced.reduce((best, item) => (item.amount < best.amount ? item : best), priced[0]);
-  const mostExpensive = priced.reduce((best, item) => (item.amount > best.amount ? item : best), priced[0]);
-  const bestDiscount = versions.reduce<ComparableVersion | null>((best, version) => {
-    if (version.campaignDiscount === null) return best;
-    if (!best || version.campaignDiscount > (best.campaignDiscount ?? 0)) return version;
-    return best;
-  }, null);
 
   return {
-    cheapest: `${cheapest.version.label}: ${formatCLP(cheapest.amount)}`,
-    spread:
-      mostExpensive.amount === cheapest.amount
-        ? "No hay diferencia entre precios finales"
-        : `${formatCLP(mostExpensive.amount - cheapest.amount)} entre la opcion mas barata y la mas cara`,
-    bestDiscount:
-      bestDiscount && bestDiscount.campaignDiscount !== null
-        ? `${bestDiscount.label}: ${formatCLP(bestDiscount.campaignDiscount)}`
-        : "Sin bono informado"
+    cheapestCash,
+    cheapestFinancing,
+    lowestOnTheRoad,
+    highestBonus
   };
+}
+
+export function priceDifferenceLabel(basePrice: number | null, currentPrice: number | null) {
+  if (!basePrice || !currentPrice) return null;
+  const diff = currentPrice - basePrice;
+  if (diff === 0) return "Mismo precio";
+  if (diff > 0) return `+${formatCLP(diff)}`;
+  return `-${formatCLP(Math.abs(diff))}`;
 }

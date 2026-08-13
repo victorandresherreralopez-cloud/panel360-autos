@@ -1,4 +1,5 @@
-import { formatCLP, normalizeText } from "./format";
+import { evaluateCommercialOffers } from "./commercial-offer-engine";
+import { formatCLP } from "./format";
 
 export type CommercialPriceInfo = {
   isCommercialVehicle: boolean;
@@ -27,103 +28,69 @@ export function getPricingBreakdown(params: {
   modelName: string;
   versionName: string;
   segment?: string | null;
+  canonicalSegment?: string | null;
   equipmentSummary?: string | null;
   citCode?: string | null;
   prices: Array<{ priceType: string; amount: number }>;
   customFreight?: number;
   customGreenTax?: number;
 }): CommercialPriceInfo {
-  const { brandName, modelName, versionName, segment, equipmentSummary, citCode, prices, customFreight = 150000, customGreenTax } = params;
+  const result = evaluateCommercialOffers({
+    brandName: params.brandName,
+    modelName: params.modelName,
+    versionName: params.versionName,
+    segment: params.segment,
+    canonicalSegment: params.canonicalSegment,
+    equipmentSummary: params.equipmentSummary,
+    sapCode: params.citCode,
+    prices: params.prices,
+    customFreight: params.customFreight,
+    customGreenTax: params.customGreenTax
+  });
 
-  const listPriceObj = prices.find((p) => p.priceType === "LIST");
-  const campaignPriceObj = prices.find((p) => p.priceType === "CAMPAIGN");
-  const cashPriceObj = prices.find((p) => p.priceType === "CASH");
-  const financingPriceObj = prices.find((p) => p.priceType === "FINANCING");
+  const cashNetPrice = result.onTheRoad.isCommercialVehicle && result.cashPrice ? Math.round(result.cashPrice / 1.19) : null;
+  const cashVatAmount = result.onTheRoad.isCommercialVehicle && result.cashPrice && cashNetPrice ? result.cashPrice - cashNetPrice : null;
+  const financingNetPrice = result.onTheRoad.isCommercialVehicle && result.financingPrice ? Math.round(result.financingPrice / 1.19) : null;
+  const financingVatAmount = result.onTheRoad.isCommercialVehicle && result.financingPrice && financingNetPrice ? result.financingPrice - financingNetPrice : null;
 
-  const listPrice = listPriceObj?.amount ?? null;
-  const cashPrice = cashPriceObj?.amount ?? campaignPriceObj?.amount ?? listPrice;
-  const financingPrice = financingPriceObj?.amount ?? null;
-
-  const brandBonus = listPrice && cashPrice && listPrice > cashPrice ? listPrice - cashPrice : 0;
-  const financingBonus = cashPrice && financingPrice && cashPrice > financingPrice ? cashPrice - financingPrice : 0;
-  const totalBonus = brandBonus + financingBonus;
-
-  // Detect commercial/pickup status for VAT deduction
-  const textHaystack = normalizeText([brandName, modelName, versionName, segment, equipmentSummary].filter(Boolean).join(" "));
-  const isCommercialVehicle =
-    textHaystack.includes("pickup") ||
-    textHaystack.includes("pick up") ||
-    textHaystack.includes("camioneta") ||
-    textHaystack.includes("poer") ||
-    textHaystack.includes("wingle") ||
-    textHaystack.includes("hunter") ||
-    textHaystack.includes("bt 50") ||
-    textHaystack.includes("d1") ||
-    textHaystack.includes("truck") ||
-    textHaystack.includes("cargo") ||
-    textHaystack.includes("furgon") ||
-    textHaystack.includes("van") ||
-    textHaystack.includes("comercial");
-
-  // VAT Net Calculations
-  const cashNetPrice = isCommercialVehicle && cashPrice ? Math.round(cashPrice / 1.19) : null;
-  const cashVatAmount = isCommercialVehicle && cashPrice && cashNetPrice ? cashPrice - cashNetPrice : null;
-
-  const financingNetPrice = isCommercialVehicle && financingPrice ? Math.round(financingPrice / 1.19) : null;
-  const financingVatAmount = isCommercialVehicle && financingPrice && financingNetPrice ? financingPrice - financingNetPrice : null;
-
-  // Operational delivery expenses (Llave en Mano)
-  const estimatedFreight = customFreight;
-  const estimatedRegistration = 82230; // Conservaduría/Inscripción RNVM Chile
-  const estimatedGreenTax = customGreenTax ?? (isCommercialVehicle ? 120000 : 250000); // Estimación referencial por emisiones/CIT
-  const basePriceForPermit = cashPrice ?? listPrice ?? 15000000;
-  const estimatedPermit = Math.round(Math.max(45000, basePriceForPermit * 0.015)); // Estimación Permiso de Circulación
-
-  const estimatedKeyInHandCash = cashPrice ? cashPrice + estimatedFreight + estimatedRegistration + estimatedGreenTax + estimatedPermit : null;
-  const estimatedKeyInHandFinancing = financingPrice
-    ? financingPrice + estimatedFreight + estimatedRegistration + estimatedGreenTax + estimatedPermit
-    : null;
-
-  // Campaign alerts & credit bonuses
   const campaignAlerts: string[] = [];
   let creditBonusAlert: string | null = null;
 
-  if (brandBonus > 0 && financingBonus > 0) {
-    creditBonusAlert = `Bono Marca (${formatCLP(brandBonus)}) + Bono Crédito (${formatCLP(financingBonus)})`;
-  } else if (brandBonus > 0) {
-    campaignAlerts.push(`Bono Marca Vigente: ${formatCLP(brandBonus)}`);
-  } else if (financingBonus > 0) {
-    campaignAlerts.push(`Bono Crédito Vigente: ${formatCLP(financingBonus)}`);
+  if (result.clientBonuses.brandBonus > 0 && result.clientBonuses.financingBonus > 0) {
+    creditBonusAlert = `Bono Marca (${formatCLP(result.clientBonuses.brandBonus)}) + Bono Crédito (${formatCLP(result.clientBonuses.financingBonus)})`;
+  } else if (result.clientBonuses.brandBonus > 0) {
+    campaignAlerts.push(`Bono Marca Vigente: ${formatCLP(result.clientBonuses.brandBonus)}`);
+  } else if (result.clientBonuses.financingBonus > 0) {
+    campaignAlerts.push(`Bono Crédito Vigente: ${formatCLP(result.clientBonuses.financingBonus)}`);
   }
 
-  if (isCommercialVehicle) {
+  if (result.onTheRoad.isCommercialVehicle) {
     campaignAlerts.push("Vehículo Comercial / Pickup: Apto para descuento de IVA (Factura)");
   }
 
-  if (citCode) {
-    campaignAlerts.push(`CIT Homologado: ${citCode}`);
+  if (params.citCode) {
+    campaignAlerts.push(`CIT Homologado: ${params.citCode}`);
   }
 
   return {
-    isCommercialVehicle,
-    listPrice,
-    cashPrice,
-    financingPrice,
-    brandBonus,
-    financingBonus,
-    totalBonus,
+    isCommercialVehicle: result.onTheRoad.isCommercialVehicle,
+    listPrice: result.listPrice,
+    cashPrice: result.cashPrice,
+    financingPrice: result.financingPrice,
+    brandBonus: result.clientBonuses.brandBonus,
+    financingBonus: result.clientBonuses.financingBonus,
+    totalBonus: result.clientBonuses.totalClientBonus,
     cashNetPrice,
     cashVatAmount,
     financingNetPrice,
     financingVatAmount,
-    estimatedFreight,
-    estimatedRegistration,
-    estimatedGreenTax,
-    estimatedPermit,
-    estimatedKeyInHandCash,
-    estimatedKeyInHandFinancing,
+    estimatedFreight: result.onTheRoad.freight,
+    estimatedRegistration: result.onTheRoad.registrationPermit,
+    estimatedGreenTax: result.onTheRoad.greenTax,
+    estimatedPermit: result.onTheRoad.circulatingPermit,
+    estimatedKeyInHandCash: result.onTheRoad.totalOnTheRoadCash,
+    estimatedKeyInHandFinancing: result.onTheRoad.totalOnTheRoadFinancing,
     creditBonusAlert,
     campaignAlerts
   };
 }
-
