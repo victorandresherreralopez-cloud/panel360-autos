@@ -1,12 +1,13 @@
 import { formatCLP } from "./format";
 
 export type CommercialScenario = {
-  key: "LISTA" | "CONTADO" | "FINANCIAMIENTO" | "CAMPAIGN" | "DERCO_CL" | "PREVENTA";
+  key: "LISTA" | "CONTADO" | "FINANCING" | "FINANCIAMIENTO" | "CAMPAIGN" | "DERCO_CL" | "PREVENTA";
   label: string;
   amount: number;
   condition?: string;
   badge?: string;
 };
+
 
 export type CommercialOfferEngineResult = {
   // Scenarios
