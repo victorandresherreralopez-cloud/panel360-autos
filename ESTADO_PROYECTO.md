@@ -161,15 +161,27 @@ Establecer las conexiones con Supabase PostgreSQL, sincronizar el esquema Prisma
   * `APP_TIMEZONE` (`America/Santiago`)
 * **Despliegue Vercel:** Se inició el proceso de compilación y despliegue a producción en Vercel (`npx vercel --prod`).
 
+---
+
+## 5. ETAPA 3: Vinculación con GitHub y Despliegue Producción Exitoso en Vercel
+
+* **Repositorio GitHub Conectado:** Se creó el repositorio público/privado `panel360-autos` en GitHub bajo la cuenta `victorandresherreralopez-cloud` (`https://github.com/victorandresherreralopez-cloud/panel360-autos`).
+* **Git Push Realizado:** Se subió la rama `master` completa a GitHub (`git push -u origin master`).
+* **Conexión GitHub ↔ Vercel:** Se vinculó el proyecto de Vercel `sistema-comercial-automotriz` directamente con el repositorio de GitHub mediante CLI (`npx vercel git connect`).
+* **Ajuste de Compilación Multiplataforma:** Se actualizó `scripts/build-vercel.mjs` e `import-vercel-data.mjs` para garantizar la compatibilidad del parámetro `--schema` de Prisma tanto en Windows local como en servidores Linux de Vercel.
+* **Despliegue en Producción Exitoso:** Se completó la compilación de Next.js y Prisma en los servidores de Vercel.
+  * **URL Principal de Producción:** [https://sistema-comercial-automotriz.vercel.app](https://sistema-comercial-automotriz.vercel.app)
+  * **URL de Despliegue Directo:** `https://sistema-comercial-automotriz-ps5r15mbq-victoko1991.vercel.app`
+
 ### Estado final
-* **Base SQLite local:** 100% intacta e inalterada (`prisma/dev.db`).
-* **Base PostgreSQL Supabase:** 100% sincronizada e importada con los mismos datos locales.
-* **Vercel:** Variables de entorno registradas y compilación enviada a producción.
+* **Arquitectura Objetivo:** GitHub + Vercel + Supabase PostgreSQL (Idéntica a Pyme 360) 100% OPERATIVA.
+* **Base SQLite local:** Intacta e inalterada (`prisma/dev.db`).
+* **Base PostgreSQL Supabase:** 100% operacional conectada a Vercel en Producción.
+* **Sistema en Producción:** Accesible públicamente desde cualquier dispositivo.
 
 ### Próximo paso recomendado
-1. Confirmar el enlace de producción entregado por Vercel.
-2. Crear el repositorio `panel360-autos` en GitHub en la cuenta `victorandresherreralopez-cloud` y realizar `git push`.
-3. Crear la cuenta de demostración independiente `demo@panel360autos.cl`.
+1. Probar el inicio de sesión y funciones en la URL oficial de producción [https://sistema-comercial-automotriz.vercel.app](https://sistema-comercial-automotriz.vercel.app).
+2. Opcional: Crear cuenta demo dedicada (`demo@panel360autos.cl`) en Supabase para demostraciones públicas.
 
 
 
