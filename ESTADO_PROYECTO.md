@@ -173,6 +173,15 @@ Establecer las conexiones con Supabase PostgreSQL, sincronizar el esquema Prisma
   * **URL Principal de Producción:** [https://sistema-comercial-automotriz.vercel.app](https://sistema-comercial-automotriz.vercel.app)
   * **URL de Despliegue Directo:** `https://sistema-comercial-automotriz-ps5r15mbq-victoko1991.vercel.app`
 
+### Credenciales de Acceso al Sistema (Producción & Local)
+
+| Cuenta / Rol | Email | Contraseña |
+| :--- | :--- | :--- |
+| **Administrador Principal** | `victorherrera@sergioescobar.cl` | `Vitoko.2022` |
+| **Cuenta Demostración** | `demo@panel360autos.cl` | `Vitoko.2022` |
+
+---
+
 ### Estado final
 * **Arquitectura Objetivo:** GitHub + Vercel + Supabase PostgreSQL (Idéntica a Pyme 360) 100% OPERATIVA.
 * **Base SQLite local:** Intacta e inalterada (`prisma/dev.db`).
@@ -180,8 +189,7 @@ Establecer las conexiones con Supabase PostgreSQL, sincronizar el esquema Prisma
 * **Sistema en Producción:** Accesible públicamente desde cualquier dispositivo.
 
 ### Próximo paso recomendado
-1. Probar el inicio de sesión y funciones en la URL oficial de producción [https://sistema-comercial-automotriz.vercel.app](https://sistema-comercial-automotriz.vercel.app).
-2. Opcional: Crear cuenta demo dedicada (`demo@panel360autos.cl`) en Supabase para demostraciones públicas.
+1. Ingresar a [https://sistema-comercial-automotriz.vercel.app](https://sistema-comercial-automotriz.vercel.app) con cualquiera de las cuentas de arriba.
 
 
 
