@@ -24,12 +24,24 @@ export async function GET(_request: Request, { params }: { params: { id: string 
     return NextResponse.json({ error: "Documento no encontrado en el sistema." }, { status: 404 });
   }
 
-  // Remote URL (Supabase Storage)
+  // 1. Direct HTTP Remote URL in storedPath (e.g. S3 PDF link)
   if (document.storedPath && /^https?:\/\//i.test(document.storedPath)) {
     return NextResponse.redirect(document.storedPath);
   }
 
-  // Attempt to read binary stored document
+  // 2. Extract HTTP PDF URL from textSource if available
+  if (document.textSource) {
+    const pdfMatch = document.textSource.match(/https?:\/\/[^\s"'\)]+\.pdf/i);
+    if (pdfMatch && pdfMatch[0]) {
+      return NextResponse.redirect(pdfMatch[0]);
+    }
+    const httpMatch = document.textSource.match(/https?:\/\/[^\s"'\)]+/i);
+    if (httpMatch && httpMatch[0]) {
+      return NextResponse.redirect(httpMatch[0]);
+    }
+  }
+
+  // 3. Attempt to read binary stored local document (for local development)
   if (document.storedPath) {
     try {
       const file = await readStoredDocument(document.storedPath);
@@ -43,11 +55,11 @@ export async function GET(_request: Request, { params }: { params: { id: string 
         }
       });
     } catch {
-      // Physical file missing on serverless disk — fallback to visual sheet below
+      // Physical local file missing on serverless disk
     }
   }
 
-  // Visual Formatted Sheet Fallback (HTML document suitable for viewing and PDF printing)
+  // 4. Visual Formatted Sheet Fallback (HTML document suitable for viewing and PDF printing)
   const title = document.originalName.replace(/\.[^.]+$/, "");
   const brandName = document.brand?.name ?? "DERCO";
   const dateStr = new Date(document.receivedAt).toLocaleDateString("es-CL");
