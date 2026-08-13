@@ -52,13 +52,14 @@ export default async function VehiclesPage({ searchParams }: { searchParams?: { 
     models: brand.models.map((model) => {
       const prices = model.versions.flatMap((version) => version.prices.filter((price) => price.priceType === "LIST"));
       const fromPrice = prices.length ? Math.min(...prices.map((price) => price.amount)) : null;
-      const normModel = normalizeText(model.name);
+      const cleanModel = normalizeText(model.name).replace(/[^a-z0-9]/g, "");
       const modelSheet =
         (model as any).technicalSheet ??
-        technicalSheets.find((sheet) => sheet.brandId === brand.id && normalizeText(sheet.originalName).includes(normModel)) ??
-        technicalSheets.find((sheet) => normalizeText(sheet.originalName).includes(normModel)) ??
+        technicalSheets.find((sheet) => sheet.brandId === brand.id && normalizeText(sheet.originalName).replace(/[^a-z0-9]/g, "").includes(cleanModel)) ??
+        technicalSheets.find((sheet) => normalizeText(sheet.originalName).replace(/[^a-z0-9]/g, "").includes(cleanModel)) ??
         null;
       const modelAidAlerts = commercialAidAlerts.filter((alert) => commercialAidMatchesVehicle(alert, brand.name, model.name)).slice(0, 3);
+
 
       return {
         id: model.id,

@@ -156,29 +156,39 @@ export async function GET(_request: Request, { params }: { params: { id: string 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${title} | Panel360 Autos</title>
   <style>
-    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 1.5rem; }
-    .card { max-width: 850px; margin: 0 auto; background: #1e293b; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 2rem; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
-    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1rem; margin-bottom: 1.5rem; }
-    .badge { display: inline-block; background: #e31837; color: white; font-weight: 800; font-size: 0.75rem; text-transform: uppercase; padding: 0.35rem 0.75rem; border-radius: 9999px; letter-spacing: 0.05em; }
-    h1 { font-size: 1.75rem; font-weight: 900; margin: 0.75rem 0 0.25rem 0; color: #ffffff; }
-    .meta { font-size: 0.85rem; color: #94a3b8; }
-    .content { font-size: 0.925rem; line-height: 1.7; color: #cbd5e1; white-space: pre-wrap; word-break: break-word; background: #0f172a; padding: 1.25rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); }
+    body { font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; color: #0f172a; margin: 0; padding: 2rem 1rem; }
+    .card { max-width: 860px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 2.5rem; box-shadow: 0 20px 40px rgba(15,23,42,0.08); }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e2e8f0; padding-bottom: 1.25rem; margin-bottom: 1.5rem; }
+    .badge { display: inline-block; background: #e31837; color: #ffffff; font-weight: 800; font-size: 0.75rem; text-transform: uppercase; padding: 0.35rem 0.75rem; border-radius: 9999px; letter-spacing: 0.05em; }
+    h1 { font-size: 1.85rem; font-weight: 900; margin: 0.75rem 0 0.25rem 0; color: #0f172a; }
+    .meta { font-size: 0.85rem; color: #64748b; font-weight: 600; }
+    .content { font-size: 0.95rem; line-height: 1.7; color: #334155; white-space: pre-wrap; word-break: break-word; background: #f1f5f9; padding: 1.25rem; border-radius: 12px; border: 1px solid #cbd5e1; }
+    .version-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem; margin-top: 0.75rem; }
+    .version-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+    .version-title { font-size: 1.1rem; color: #0f172a; font-weight: 800; }
+    .price-pill { font-size: 0.85rem; background: #e0f2fe; color: #0369a1; padding: 0.3rem 0.7rem; border-radius: 9999px; font-weight: 800; }
+    .specs-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); display: grid; gap: 0.75rem; margin-top: 0.75rem; font-size: 0.85rem; color: #475569; }
+    .equip-box { margin-top: 0.75rem; font-size: 0.825rem; color: #334155; background: #ffffff; padding: 0.6rem 0.85rem; border-radius: 8px; border: 1px solid #cbd5e1; }
     .actions { display: flex; gap: 1rem; margin-top: 2rem; }
-    .btn-primary { background: #e31837; color: white; font-weight: 800; border: none; padding: 0.75rem 1.5rem; border-radius: 10px; cursor: pointer; font-size: 0.9rem; transition: background 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; }
+    .btn-primary { background: #e31837; color: white; font-weight: 800; border: none; padding: 0.85rem 1.75rem; border-radius: 10px; cursor: pointer; font-size: 0.95rem; transition: background 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; box-shadow: 0 10px 20px rgba(227,24,55,0.25); }
     .btn-primary:hover { background: #c10c27; }
-    .btn-secondary { background: rgba(255,255,255,0.1); color: white; font-weight: 700; border: 1px solid rgba(255,255,255,0.15); padding: 0.75rem 1.25rem; border-radius: 10px; cursor: pointer; font-size: 0.9rem; text-decoration: none; }
-    .btn-secondary:hover { background: rgba(255,255,255,0.2); }
+    .btn-secondary { background: #f1f5f9; color: #0f172a; font-weight: 700; border: 1px solid #cbd5e1; padding: 0.85rem 1.5rem; border-radius: 10px; cursor: pointer; font-size: 0.95rem; text-decoration: none; }
+    .btn-secondary:hover { background: #e2e8f0; }
+    @media print {
+      body { background: white; padding: 0; }
+      .card { border: none; box-shadow: none; padding: 0; }
+      .actions { display: none; }
+    }
   </style>
 </head>
 <body>
   <div class="card">
     <div class="header">
       <div>
-        <span class="badge">${brandName} — FICHA TÉCNICA Y ESPECIFICACIONES</span>
+        <span class="badge">${brandName} — FICHA TÉCNICA OFICIAL</span>
         <h1>${title}</h1>
-        <div class="meta">Actualizado: ${dateStr}</div>
+        <div class="meta">Publicación de Catálogo Comercial | Actualizado: ${dateStr}</div>
       </div>
-      <img src="https://derco.cl/favicon.ico" alt="Derco Logo" style="height: 36px; opacity: 0.8; filter: brightness(2);" onerror="this.style.display='none'">
     </div>
 
     <div class="content">${extractedText}</div>
@@ -187,11 +197,12 @@ export async function GET(_request: Request, { params }: { params: { id: string 
 
     <div class="actions">
       <button class="btn-primary" onclick="window.print()">🖨️ Imprimir / Guardar en PDF</button>
-      <a class="btn-secondary" href="/vehiculos">🚗 Volver al Catálogo</a>
+      <a class="btn-secondary" href="/vehiculos">🚗 Volver al Catálogo de Vehículos</a>
     </div>
   </div>
 </body>
 </html>`;
+
 
   return new Response(html, {
     headers: {

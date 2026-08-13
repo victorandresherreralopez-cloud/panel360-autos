@@ -202,16 +202,21 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
           // Pickup: prioridad al segmento de DB, luego haystack
           segmentMatch =
             includesAny(rawSegment, ["pickup", "pick up", "pick-up", "camioneta"]) ||
-            includesAny(haystack, ["pickup", "pick up", "pick-up", "camioneta", "cabina doble", "poer", "wingle", "hunter", "hilux", "dmax", "ranger", "d-max", "triton"]);
+            includesAny(haystack, ["pickup", "pick up", "pick-up", "camioneta", "cabina doble", "poer", "wingle", "hunter", "hilux", "dmax", "ranger", "d-max", "triton", "bt-50", "bt 50"]);
         } else if (segLower === "suv") {
-          // SUV / Crossover: incluye SUV Compacto, SUV Mediano, Crossover, etc.
-          // Excluye pickups aunque tengan "suv" en el nombre
+          // SUV / Crossover: incluye SUV Compacto, SUV Mediano, Crossover, Station Wagon, etc.
+          // Excluye pickups aunque tengan palabras parecidas
           const isPickup = includesAny(rawSegment, ["pickup", "camioneta"]) ||
-            includesAny(haystack, ["pickup", "camioneta", "pick up"]);
+            includesAny(haystack, ["pickup", "camioneta", "pick up", "poer", "wingle", "hunter", "bt-50"]);
           segmentMatch =
             !isPickup && (
-              includesAny(rawSegment, ["suv", "crossover", "todoterreno", "todo terreno"]) ||
-              includesAny(haystack, ["suv", "crossover"])
+              includesAny(rawSegment, ["suv", "crossover", "todoterreno", "todo terreno", "station wagon", "s.w."]) ||
+              includesAny(haystack, [
+                "suv", "crossover", "todoterreno", "station wagon", "s.w.",
+                "cx-", "cx30", "cx5", "cx50", "cx90", "vitara", "s-cross", "scross", "fronx", "ignis", "jimny",
+                "cs15", "cs35", "cs55", "cs75", "uni-k", "uni-t", "jolion", "h6", "haval", "tank", "ora",
+                "500", "580", "600", "glory", "fengon"
+              ])
             );
         } else if (segLower === "sedan") {
           segmentMatch =
@@ -243,14 +248,18 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
       }
 
       // ── 2. Presupuesto Máximo Obligatorio ────────────────────────────────────
-      if (budget && price) {
-        if (price <= budget) {
+      if (budget) {
+        if (!price) {
+          hardFiltered = true;
+          hardFilterReasons.push("Sin precio vigente para evaluar presupuesto");
+        } else if (price <= budget) {
           reasons.push(`✅ Precio considerado: ${formatCLP(price)} (Dentro del presupuesto de ${formatCLP(budget)})`);
         } else {
           hardFiltered = true;
           hardFilterReasons.push(`Supera el presupuesto por ${formatCLP(price - budget)}`);
         }
       }
+
 
       // 3. Transmisión Obligatoria
       if (box && box !== "Indiferente") {
@@ -351,12 +360,9 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
     });
 
   const compliantVehicles = scored
-    .filter((item) => !item.hardFiltered)
-    .sort((a, b) => {
-      // Primero los que tienen precio, luego los sin precio
-      if (!!a.price !== !!b.price) return a.price ? -1 : 1;
-      return b.score - a.score || (a.price ?? Number.MAX_SAFE_INTEGER) - (b.price ?? Number.MAX_SAFE_INTEGER);
-    });
+    .filter((item) => Boolean(item.price) && !item.hardFiltered)
+    .sort((a, b) => b.score - a.score || (a.price ?? Number.MAX_SAFE_INTEGER) - (b.price ?? Number.MAX_SAFE_INTEGER));
+
 
   const alternativeVehicles = scored
     .filter((item) => item.price && item.hardFiltered)

@@ -445,20 +445,26 @@ export function VehiclesExplorer({
                                 ) : null}
                               </td>
                               <td>
-                                {breakdown.cashPrice ? (
+                                {breakdown.isCommercialVehicle && breakdown.cashNetPrice ? (
                                   <div>
-                                    <span className="font-black text-slate-800 dark:text-slate-200">
+                                    <span className="font-black text-emerald-700 dark:text-emerald-400">
+                                      {formatCLP(breakdown.cashNetPrice)}
+                                    </span>
+                                    <span className="ml-1 text-[10px] font-bold text-emerald-800 dark:text-emerald-300">+IVA</span>
+                                    <div className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">⭐ Apto Factura / Recupera IVA</div>
+                                  </div>
+                                ) : breakdown.cashPrice ? (
+                                  <div>
+                                    <span className="font-semibold text-slate-600 dark:text-slate-400">
                                       {formatCLP(Math.round(breakdown.cashPrice / 1.19))}
                                     </span>
-                                    <span className="ml-1 text-[10px] font-bold text-steel">+IVA</span>
-                                    {breakdown.isCommercialVehicle ? (
-                                      <div className="text-[10px] font-bold text-emerald-700">Recupera IVA (Factura)</div>
-                                    ) : null}
+                                    <span className="ml-1 text-[10px] font-normal text-steel">(Ref. Sin IVA)</span>
                                   </div>
                                 ) : (
                                   <span className="text-xs text-steel">N/I</span>
                                 )}
                               </td>
+
                               <td>
                                 <div className="flex gap-2">
                                   <Link href={`/cotizador?versionId=${version.id}`} className="rounded-lg border border-graphite/10 bg-white px-2.5 py-1.5 text-xs font-black text-graphite transition hover:border-signal/40">
