@@ -5,7 +5,6 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 model Brand {
@@ -54,15 +53,19 @@ model VehicleModel {
   brandId            String
   name               String
   segment            String?
+  canonicalSegment   String?              // SEDAN | SUV | PICKUP | HATCHBACK | CITYCAR | COMERCIAL
   fuelTypes          String?
+
   transmissions      String?
   tractions          String?
   imagePath          String?
+  technicalSheetId   String?
   commercialPosition Int                  @default(0)
   status             String               @default("BORRADOR")
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
   brand              Brand                @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  technicalSheet     Document?            @relation("ModelTechnicalSheet", fields: [technicalSheetId], references: [id])
   versions           Version[]
   campaigns          CommercialCampaign[]
 
@@ -119,6 +122,7 @@ model Version {
   benefits           Benefit[]
   quoteItems         QuoteItem[]
   interests          CustomerInterest[]
+  commercialOffers   CommercialOffer[]
 
   @@unique([modelId, name])
   @@map("versions")
@@ -130,6 +134,10 @@ model Price {
   priceType     String
   amount        Int
   currency      String         @default("CLP")
+  channel       String         @default("REGULAR")  // REGULAR | DERCO_CL | PREVENTA | CONCESIONARIO
+  bonusName     String?        // e.g. "Bono Días 0 Km"
+  bonusAmount   Int?           // monto del bono incluido en este precio
+  hasIva        Boolean        @default(false)       // true = el monto es +IVA (sin incluir)
   effectiveFrom DateTime       @default(now())
   effectiveTo   DateTime?
   status        String         @default("DETECTADO")
@@ -144,6 +152,7 @@ model Price {
   history       PriceHistory[]
 
   @@index([versionId, priceType, status])
+  @@index([versionId, channel])
   @@map("prices")
 }
 
@@ -241,6 +250,7 @@ model Document {
   brand          Brand?           @relation(fields: [brandId], references: [id])
   imports        DocumentImport[]
   prices         Price[]
+  vehicleModels  VehicleModel[]   @relation("ModelTechnicalSheet")
 
   @@map("documents")
 }
@@ -376,6 +386,8 @@ model Customer {
   commune            String?
   city               String?
   region             String?
+  emailVerifiedAt    DateTime?
+  emailVerificationToken String?        @unique
   rutLookupConsentAt DateTime?
   rutLookupSource    String?
   statusId           String?
@@ -609,4 +621,65 @@ model StudyProgress {
   question       StudyQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@map("study_progress")
+}
+
+// ─── Motor de Inteligencia Comercial ────────────────────────────────────────
+
+/// Registra TODA oferta comercial extraída de los Excel (bonos, patente gratis,
+/// tasas, giftcards, bono cierre compartido, precios Derco.cl, preventas).
+/// Reemplaza la dispersión actual entre CommercialCampaign, Bonus y Benefit.
+model CommercialOffer {
+  id               String    @id @default(cuid())
+  /// Tipo de oferta comercial
+  offerType        String    // BONO_MARCA | BONO_FINANCIAMIENTO | BONO_CIERRE_COMPARTIDO |
+                             // PATENTE_GRATIS | TASA | GIFTCARD | PRECIO_ESPECIAL |
+                             // MANTENCION | ACCESORIO | PREVENTA | COPEC | OTRO
+  brandId          String?
+  modelId          String?
+  versionId        String?
+  /// Nombres descriptivos para búsqueda rápida sin join
+  brandName        String?
+  modelName        String?
+  versionName      String?
+  title            String    // Nombre del beneficio, ej: "Bono Días 0 Km"
+  /// Canal de venta donde aplica
+  channel          String    @default("REGULAR") // REGULAR | DERCO_CL | PREVENTA | CONCESIONARIO | WEB
+  /// Tipo de pago para el que aplica la oferta
+  paymentType      String    @default("AMBOS")   // CONTADO | CREDITO | AMBOS
+  /// Montos diferenciados por tipo de pago
+  amountCash       Int?      // monto para negocios al contado
+  amountCredit     Int?      // monto para negocios con crédito
+  amountTotal      Int?      // monto único si no se diferencia
+  /// Para Bono Cierre Compartido: desglose de origen del fondo
+  aporteCES        Int?      // aporte de CES (concesionario)
+  aporteMarca      Int?      // aporte de la marca
+  aporteCESCredit  Int?      // aporte CES para crédito
+  aporteMarcaCredit Int?     // aporte marca para crédito
+  /// IVA
+  hasIva           Boolean   @default(false) // true = montos son +IVA (sin incluir)
+  /// Tasas
+  rate             String?   // ej: "1.69%"
+  rateContext      String?   // ej: "Tasa GWM Amicar comisión subvencionada"
+  /// Vigencia
+  validFrom        DateTime?
+  validUntil       DateTime?
+  /// Reglas de compatibilidad/incompatibilidad (texto libre, parseable)
+  condition        String?   // descripción general de la condición
+  incompatibleWith String?   // ej: "TASA_1.69_GWM_AMICAR, TASA_0.99_POER_P500"
+  compatibleWith   String?   // ej: "BONO_CIERRE_COMPARTIDO, TASA_1.69, CAMPANAS"
+  exception        String?   // excepciones específicas
+  /// Trazabilidad de origen
+  sourceDocumentId String?
+  sheetName        String?   // hoja del Excel de origen, ej: "Bono Cierre Compartido"
+  sourceMonth      String?   // ej: "agosto 2026"
+  /// Estado del ciclo de vida
+  status           String    @default("VIGENTE") // VIGENTE | FINALIZADA | BORRADOR | SUSPENDIDA
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  version          Version?  @relation(fields: [versionId], references: [id])
+
+  @@index([versionId, offerType, status])
+  @@index([modelName, offerType, status])
+  @@index([status, validUntil])
+  @@map("commercial_offers")
 }

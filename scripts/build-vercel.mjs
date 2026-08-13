@@ -2,28 +2,32 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-const databaseUrl =
+// Detect PostgreSQL database URL from Vercel / Supabase environment variables
+const rawDbUrl =
   process.env.DATABASE_URL ??
   process.env.POSTGRES_PRISMA_URL ??
   process.env.POSTGRES_URL ??
   process.env.POSTGRES_URL_NON_POOLING ??
   process.env.SUPABASE_DATABASE_URL ??
   "";
+
 const directUrl =
   process.env.DIRECT_URL ??
   process.env.POSTGRES_URL_NON_POOLING ??
   process.env.SUPABASE_DIRECT_URL ??
   "";
 
-if (databaseUrl && !process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = databaseUrl;
+const isPostgres = /^postgres(?:ql)?:\/\//i.test(rawDbUrl);
+const dummyPostgresUrl = "postgresql://postgres:postgres@localhost:5432/postgres";
+const effectiveDbUrl = isPostgres ? rawDbUrl : dummyPostgresUrl;
+
+// Set DATABASE_URL environment variable for Prisma Client generation
+process.env.DATABASE_URL = effectiveDbUrl;
+if (directUrl) {
+  process.env.DIRECT_URL = directUrl;
 }
 
-if (!/^postgres(?:ql)?:\/\//i.test(databaseUrl)) {
-  console.error("Vercel necesita DATABASE_URL con PostgreSQL. Ejemplo: postgresql://usuario:clave@host:5432/base");
-  console.error("La version local puede seguir usando SQLite con npm run build.");
-  process.exit(1);
-}
+console.log(`[Vercel Build Script] Usando motor PostgreSQL para Prisma. URL activa: ${isPostgres ? "CONFIGURADA" : "FALLBACK_BUILD"}`);
 
 const sourceSchemaPath = path.join(process.cwd(), "prisma", "schema.prisma");
 const targetDir = path.join(process.cwd(), ".prisma-vercel");
@@ -31,7 +35,7 @@ const targetSchemaPath = path.join(targetDir, "schema.prisma");
 const sourceSchema = readFileSync(sourceSchemaPath, "utf8");
 
 if (!sourceSchema.includes('provider = "sqlite"')) {
-  console.error("No pude preparar el schema de Prisma para Vercel: no encontre provider sqlite.");
+  console.error("No pude preparar el schema de Prisma para Vercel: no encontré provider sqlite.");
   process.exit(1);
 }
 
@@ -43,10 +47,6 @@ const postgresSchema = sourceSchema.replace(
   url      = env("DATABASE_URL")${directUrl ? '\n  directUrl = env("DIRECT_URL")' : ""}
 }`
 );
-
-if (directUrl && !process.env.DIRECT_URL) {
-  process.env.DIRECT_URL = directUrl;
-}
 
 writeFileSync(targetSchemaPath, postgresSchema);
 
@@ -61,13 +61,10 @@ const schemaArg = process.platform === "win32" && targetSchemaPath.includes(" ")
   ? `--schema="${targetSchemaPath}"`
   : `--schema=${targetSchemaPath}`;
 
-if (process.env.VERCEL_SKIP_DB_PUSH !== "1") {
-  run("npx", ["prisma", "db", "push", schemaArg, "--skip-generate"]);
-}
+// 1. Generar cliente de Prisma para PostgreSQL (SIN ejecutar db push para proteger Supabase)
+console.log("[Vercel Build Script] Generando cliente de Prisma PostgreSQL...");
+run("npx", ["prisma", "generate", schemaArg]);
 
-try {
-  run("npx", ["prisma", "generate", schemaArg]);
-} catch (e) {
-  console.log("Prisma generate se saltó en entorno local con servidor activo.");
-}
+// 2. Compilar aplicación Next.js
+console.log("[Vercel Build Script] Compilando Next.js...");
 run("npx", ["next", "build"]);
