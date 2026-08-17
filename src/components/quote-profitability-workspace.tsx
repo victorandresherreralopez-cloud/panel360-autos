@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ClipboardCheck, CreditCard } from "lucide-react";
+import { ClipboardCheck, CreditCard, Search, X } from "lucide-react";
 import { saveQuote } from "@/lib/actions";
-import { formatCLP } from "@/lib/format";
+import { formatCLP, normalizeText } from "@/lib/format";
 import { getPricingBreakdown } from "@/lib/pricing-breakdown";
 import { ProfitabilitySheet, type FormState, type ProfitabilityVehicle } from "@/components/profitability-sheet";
 
@@ -26,9 +26,16 @@ function moneyValue(value: string) {
   return Number.parseInt(value.replace(/[^\d-]/g, "") || "0", 10) || 0;
 }
 
+function vehicleSearchText(vehicle: ProfitabilityVehicle) {
+  return normalizeText(`${vehicle.brandName} ${vehicle.modelName} ${vehicle.versionName} ${vehicle.citCode ?? ""}`);
+}
+
 export function QuoteProfitabilityWorkspace({ vehicles, customers, today, initialVersionId = "", initialCustomerId = "" }: QuoteProfitabilityWorkspaceProps) {
   const [selectedVersionId, setSelectedVersionId] = useState(initialVersionId);
   const [customerId, setCustomerId] = useState(initialCustomerId);
+  const [brandFilter, setBrandFilter] = useState("");
+  const [modelFilter, setModelFilter] = useState("");
+  const [vehicleSearch, setVehicleSearch] = useState("");
   const [discount, setDiscount] = useState("");
   const [downPayment, setDownPayment] = useState("");
   const [installments, setInstallments] = useState("");
@@ -40,6 +47,49 @@ export function QuoteProfitabilityWorkspace({ vehicles, customers, today, initia
   const discountAmount = moneyValue(discount);
   const basePrice = selectedVehicle?.cashPrice ?? selectedVehicle?.campaignPrice ?? selectedVehicle?.listPrice ?? 0;
   const quoteTotal = Math.max(0, basePrice - discountAmount);
+  const normalizedVehicleSearch = normalizeText(vehicleSearch);
+
+  const brandOptions = useMemo(() => Array.from(new Set(vehicles.map((vehicle) => vehicle.brandName))).sort(), [vehicles]);
+  const modelOptions = useMemo(() => {
+    return Array.from(
+      new Set(
+        vehicles
+          .filter((vehicle) => !brandFilter || vehicle.brandName === brandFilter)
+          .map((vehicle) => vehicle.modelName)
+      )
+    ).sort();
+  }, [brandFilter, vehicles]);
+
+  const filteredVehicles = useMemo(() => {
+    return vehicles.filter((vehicle) => {
+      const matchesBrand = !brandFilter || vehicle.brandName === brandFilter;
+      const matchesModel = !modelFilter || vehicle.modelName === modelFilter;
+      const matchesSearch = !normalizedVehicleSearch || vehicleSearchText(vehicle).includes(normalizedVehicleSearch);
+      return matchesBrand && matchesModel && matchesSearch;
+    });
+  }, [brandFilter, modelFilter, normalizedVehicleSearch, vehicles]);
+
+  const selectorVehicles = useMemo(() => {
+    if (!selectedVehicle || filteredVehicles.some((vehicle) => vehicle.id === selectedVehicle.id)) return filteredVehicles;
+    return [selectedVehicle, ...filteredVehicles];
+  }, [filteredVehicles, selectedVehicle]);
+
+  const quickVehicles = filteredVehicles.slice(0, 8);
+
+  const chooseVehicle = (versionId: string) => {
+    setSelectedVersionId(versionId);
+    const vehicle = vehicles.find((item) => item.id === versionId);
+    if (vehicle) {
+      setBrandFilter(vehicle.brandName);
+      setModelFilter(vehicle.modelName);
+    }
+  };
+
+  const clearVehicleFilters = () => {
+    setBrandFilter("");
+    setModelFilter("");
+    setVehicleSearch("");
+  };
 
   const profitabilityState = useMemo<Partial<FormState>>(
     () => ({
@@ -87,17 +137,88 @@ export function QuoteProfitabilityWorkspace({ vehicles, customers, today, initia
         </div>
 
         <form action={saveQuote} className="mt-5 grid gap-3 lg:grid-cols-4">
-          <label className="grid gap-1.5 lg:col-span-2">
-            <span className="text-xs font-black uppercase text-steel">Vehiculo</span>
-            <select className="input" name="versionId" value={selectedVersionId} onChange={(event) => setSelectedVersionId(event.target.value)} required>
-              <option value="">Marca, modelo y version</option>
-              {vehicles.map((vehicle) => (
-                <option key={vehicle.id} value={vehicle.id}>
-                  {vehicle.label} {vehicle.citCode ? `| CIT ${vehicle.citCode}` : "| CIT pendiente"}
-                </option>
+          <div className="grid gap-3 rounded-lg border border-graphite/10 bg-white/70 p-3 lg:col-span-4">
+            <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
+              <label className="grid gap-1.5">
+                <span className="text-xs font-black uppercase text-steel">Vehiculo</span>
+                <span className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-steel" aria-hidden="true" />
+                  <input
+                    className="input pl-9"
+                    value={vehicleSearch}
+                    onChange={(event) => setVehicleSearch(event.target.value)}
+                    placeholder="Buscar rapido: Hunter, Jolion, Mazda CX-5, CIT..."
+                  />
+                </span>
+              </label>
+              <button className="btn btn-secondary" type="button" onClick={clearVehicleFilters}>
+                <X className="h-4 w-4" aria-hidden="true" />
+                Limpiar filtros
+              </button>
+            </div>
+
+            <div className="flex flex-wrap gap-2" aria-label="Filtro por marca">
+              {brandOptions.map((brand) => (
+                <button
+                  key={brand}
+                  className={brandFilter === brand ? "btn btn-primary text-xs" : "btn btn-secondary text-xs"}
+                  type="button"
+                  onClick={() => {
+                    setBrandFilter(brandFilter === brand ? "" : brand);
+                    setModelFilter("");
+                  }}
+                >
+                  {brand}
+                </button>
               ))}
-            </select>
-          </label>
+            </div>
+
+            {brandFilter || modelFilter ? (
+              <div className="flex flex-wrap gap-2" aria-label="Filtro por modelo">
+                {modelOptions.slice(0, 18).map((model) => (
+                  <button
+                    key={model}
+                    className={modelFilter === model ? "btn btn-primary text-xs" : "btn btn-secondary text-xs"}
+                    type="button"
+                    onClick={() => setModelFilter(modelFilter === model ? "" : model)}
+                  >
+                    {model}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            <label className="grid gap-1.5">
+              <span className="text-xs font-black uppercase text-steel">Version encontrada</span>
+              <select className="input" name="versionId" value={selectedVersionId} onChange={(event) => chooseVehicle(event.target.value)} required>
+                <option value="">Marca, modelo y version</option>
+                {selectorVehicles.map((vehicle) => (
+                  <option key={vehicle.id} value={vehicle.id}>
+                    {vehicle.label} {vehicle.citCode ? `| CIT ${vehicle.citCode}` : "| CIT pendiente"}
+                  </option>
+                ))}
+              </select>
+              <span className="text-xs font-semibold text-steel">{filteredVehicles.length} versiones coinciden con los filtros.</span>
+            </label>
+
+            {vehicleSearch || brandFilter || modelFilter ? (
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                {quickVehicles.map((vehicle) => (
+                  <button
+                    key={vehicle.id}
+                    className="rounded-lg border border-graphite/10 bg-white p-3 text-left transition hover:border-signal hover:shadow-sm"
+                    type="button"
+                    onClick={() => chooseVehicle(vehicle.id)}
+                  >
+                    <span className="block text-[11px] font-black uppercase text-copper">{vehicle.brandName}</span>
+                    <span className="mt-1 block text-sm font-black leading-5 text-ink">{vehicle.modelName}</span>
+                    <span className="mt-1 block text-xs font-semibold leading-4 text-steel">{vehicle.versionName}</span>
+                    <span className="mt-2 block text-xs font-black text-signal">{formatCLP(vehicle.cashPrice ?? vehicle.listPrice)}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
 
           <label className="grid gap-1.5">
             <span className="text-xs font-black uppercase text-steel">Cliente</span>

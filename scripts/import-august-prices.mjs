@@ -61,8 +61,41 @@ const trimTokens = new Set([
   "sport"
 ]);
 
+const VAT_RATE = 1.19;
+
 function trimSet(value) {
   return new Set(tokens(value).filter((token) => trimTokens.has(token)));
+}
+
+function grossAmount(value, hasIva) {
+  const amount = money(value);
+  if (!amount) return null;
+  return hasIva ? amount : Math.round(amount * VAT_RATE);
+}
+
+function hasToken(value, patterns) {
+  const normalized = normalize(value);
+  return patterns.some((pattern) => normalized.includes(pattern));
+}
+
+function tractionCode(value) {
+  const normalized = normalize(value).replace(/\s+/g, "");
+  if (normalized.includes("4x4") || normalized.includes("4wd") || normalized.includes("awd")) return "4x4";
+  if (normalized.includes("4x2") || normalized.includes("2wd") || normalized.includes("fwd") || normalized.includes("rwd")) return "4x2";
+  return null;
+}
+
+function transmissionCode(value) {
+  const normalized = normalize(value);
+  if (hasToken(normalized, [" mt", " 5mt", " 6mt", " manual"])) return "mt";
+  if (hasToken(normalized, [" at", " 6at", " 8at", " automatic"])) return "at";
+  return null;
+}
+
+function shouldApplyMismatchPenalty(sourceText, candidateText, detector) {
+  const source = detector(sourceText);
+  const candidate = detector(candidateText);
+  return Boolean(source && candidate && source !== candidate);
 }
 
 function money(value) {
@@ -92,6 +125,7 @@ function parseChanganRows() {
   const rows = sheetRows(sourceFiles.changan, "1. Lista de Precios Oficial");
   const entries = [];
   let currentModel = "";
+  let currentHasIva = true;
 
   for (const row of rows.slice(3)) {
     const model = compactModelName(row[0]);
@@ -99,10 +133,12 @@ function parseChanganRows() {
 
     const versionName = asText(row[1]);
     const iva = normalize(row[3]);
-    const listPrice = money(row[4]);
-    const cashPrice = money(row[6]);
-    const financingPrice = money(row[8]);
-    if (iva === "neto") continue;
+    if (iva === "neto") currentHasIva = false;
+    if (iva.includes("iva")) currentHasIva = true;
+
+    const listPrice = grossAmount(row[4], currentHasIva);
+    const cashPrice = grossAmount(row[6], currentHasIva);
+    const financingPrice = grossAmount(row[8], currentHasIva);
     if (!versionName || !listPrice || !cashPrice) continue;
 
     entries.push({
@@ -111,11 +147,11 @@ function parseChanganRows() {
       versionName,
       sapCode: asText(row[2]),
       citCode: null,
-      hasIva: iva !== "neto",
+      hasIva: true,
       listPrice,
-      brandBonus: money(row[5]),
+      brandBonus: grossAmount(row[5], currentHasIva),
       cashPrice,
-      financingBonus: money(row[7]),
+      financingBonus: grossAmount(row[7], currentHasIva),
       financingPrice,
       sourceFile: sourceFiles.changan,
       sourceSheet: "1. Lista de Precios Oficial",
@@ -262,6 +298,7 @@ function scoreCandidate(entry, version) {
   const sourceModel = normalize(entry.modelName);
   const modelName = normalize(version.model.name);
   const versionName = normalize(version.name);
+  const candidateText = normalize(`${version.model.name} ${version.name}`);
   const citMatches = entry.citCode && version.sapCode && normalize(entry.citCode) === normalize(version.sapCode);
   const brandMatches = entry.brandHint && normalize(entry.brandHint) === normalize(version.brand.name);
   const strongModelMatch = Boolean(sourceModel && modelName && (sourceModel.includes(modelName) || modelName.includes(sourceModel)));
@@ -289,6 +326,10 @@ function scoreCandidate(entry, version) {
 
   if (entry.brandHint && !brandMatches) score -= 30;
   if (entry.citCode && version.sapCode && !citMatches) score -= 5;
+  if (shouldApplyMismatchPenalty(sourceText, candidateText, tractionCode)) score -= 85;
+  if (shouldApplyMismatchPenalty(sourceText, candidateText, transmissionCode)) score -= 55;
+  if (sourceText.includes("reev") !== candidateText.includes("reev")) score -= 45;
+
   const sourceTrim = trimSet(entry.versionName);
   const candidateTrim = trimSet(version.name);
   if (sourceTrim.size && candidateTrim.size) {

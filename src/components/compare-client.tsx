@@ -67,6 +67,8 @@ export function CompareClient({
   const validInitialSelected = initialSelected.filter((id) => versions.some((version) => version.id === id)).slice(0, 3);
   const [selectedSlots, setSelectedSlots] = useState<string[]>(firstThreeSlots(validInitialSelected));
   const [searchTerm, setSearchTerm] = useState("");
+  const [brandFilter, setBrandFilter] = useState("");
+  const [modelFilter, setModelFilter] = useState("");
   const [showOnlyDifferences, setShowOnlyDifferences] = useState(false);
   const selectedIds = useMemo(() => selectedUniqueIds(selectedSlots), [selectedSlots]);
 
@@ -94,6 +96,42 @@ export function CompareClient({
   }, [commercialAids, comparable]);
 
   const normalizedSearch = normalizeText(searchTerm);
+  const brandOptions = useMemo(() => Array.from(new Set(versions.map((version) => version.brand.name))).sort(), [versions]);
+  const modelOptions = useMemo(() => {
+    return Array.from(
+      new Set(
+        versions
+          .filter((version) => !brandFilter || version.brand.name === brandFilter)
+          .map((version) => version.model.name)
+      )
+    ).sort();
+  }, [brandFilter, versions]);
+
+  const filteredVersions = useMemo(() => {
+    return versions.filter((version) => {
+      const matchesBrand = !brandFilter || version.brand.name === brandFilter;
+      const matchesModel = !modelFilter || version.model.name === modelFilter;
+      const matchesSearch = !normalizedSearch || filterText(version).includes(normalizedSearch);
+      return matchesBrand && matchesModel && matchesSearch;
+    });
+  }, [brandFilter, modelFilter, normalizedSearch, versions]);
+
+  const addVersionToNextSlot = (versionId: string) => {
+    const next = firstThreeSlots(selectedSlots);
+    const emptyIndex = next.findIndex((id) => !id);
+    const targetIndex = emptyIndex === -1 ? 0 : emptyIndex;
+    next[targetIndex] = versionId;
+    next.forEach((id, index) => {
+      if (index !== targetIndex && id === versionId) next[index] = "";
+    });
+    setSelectedSlots(next);
+  };
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setBrandFilter("");
+    setModelFilter("");
+  };
 
   if (!versions.length) {
     return (
@@ -114,16 +152,79 @@ export function CompareClient({
             <p className="text-sm font-black text-ink">Seleccione hasta 3 versiones para comparar comercial y técnicamente</p>
             <p className="mt-1 text-xs font-semibold text-steel">La primera opción queda como referencia principal para calcular diferencias de precio.</p>
           </div>
-          <label className="relative block w-full md:w-80">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-steel" aria-hidden="true" />
-            <input
-              className="input pl-9"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Buscar marca, modelo, versión o CIT"
-            />
-          </label>
+          <div className="flex w-full flex-col gap-2 md:w-[30rem]">
+            <label className="relative block">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-steel" aria-hidden="true" />
+              <input
+                className="input pl-9"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Buscar Hunter, Jolion, CX-5 o CIT"
+              />
+            </label>
+            <button className="btn btn-secondary justify-center text-xs" type="button" onClick={clearFilters}>
+              Limpiar busqueda
+            </button>
+          </div>
         </div>
+
+        <div className="mt-4 flex flex-wrap gap-2" aria-label="Filtro por marca">
+          {brandOptions.map((brand) => (
+            <button
+              key={brand}
+              className={brandFilter === brand ? "btn btn-primary text-xs" : "btn btn-secondary text-xs"}
+              type="button"
+              onClick={() => {
+                setBrandFilter(brandFilter === brand ? "" : brand);
+                setModelFilter("");
+              }}
+            >
+              {brand}
+            </button>
+          ))}
+        </div>
+
+        {brandFilter || modelFilter ? (
+          <div className="mt-3 flex flex-wrap gap-2" aria-label="Filtro por modelo">
+            {modelOptions.slice(0, 18).map((model) => (
+              <button
+                key={model}
+                className={modelFilter === model ? "btn btn-primary text-xs" : "btn btn-secondary text-xs"}
+                type="button"
+                onClick={() => setModelFilter(modelFilter === model ? "" : model)}
+              >
+                {model}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        {(searchTerm || brandFilter || modelFilter) && filteredVersions.length ? (
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {filteredVersions
+              .filter((version) => !selectedIds.includes(version.id))
+              .slice(0, 8)
+              .map((version) => {
+                const price = version.prices.find((item) => item.priceType === "CASH" && (item.channel ?? "REGULAR") === "REGULAR")?.amount
+                  ?? version.prices.find((item) => item.priceType === "LIST" && (item.channel ?? "REGULAR") === "REGULAR")?.amount
+                  ?? null;
+
+                return (
+                  <button
+                    key={version.id}
+                    className="rounded-lg border border-graphite/10 bg-white p-3 text-left transition hover:border-signal hover:shadow-sm"
+                    type="button"
+                    onClick={() => addVersionToNextSlot(version.id)}
+                  >
+                    <span className="block text-[11px] font-black uppercase text-copper">{version.brand.name}</span>
+                    <span className="mt-1 block text-sm font-black leading-5 text-ink">{version.model.name}</span>
+                    <span className="mt-1 block text-xs font-semibold leading-4 text-steel">{version.name}</span>
+                    <span className="mt-2 block text-xs font-black text-signal">{formatCLP(price)}</span>
+                  </button>
+                );
+              })}
+          </div>
+        ) : null}
 
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           {[0, 1, 2].map((slot) => (
@@ -145,7 +246,7 @@ export function CompareClient({
             >
               <option value="">Seleccionar Versión {slot + 1}</option>
               {versions
-                .filter((version) => !normalizedSearch || filterText(version).includes(normalizedSearch) || selectedSlots[slot] === version.id)
+                .filter((version) => filteredVersions.some((item) => item.id === version.id) || selectedSlots[slot] === version.id)
                 .map((version) => (
                   <option key={version.id} value={version.id} disabled={selectedSlots.some((id, index) => index !== slot && id === version.id)}>
                     {version.brand.name} {version.model.name} {version.name}
