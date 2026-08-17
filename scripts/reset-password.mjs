@@ -12,40 +12,55 @@ async function hashPassword(password) {
   return `scrypt:${salt}:${derived.toString("base64url")}`;
 }
 
-const targetEmail = process.argv[2] || "victorherrera@sergioescobar.cl";
-const newPassword = process.argv[3] || "Vitoko.2022";
+const targetEmail = process.argv[2] || process.env.RESET_PASSWORD_EMAIL || "victorherrera@sergioescobar.cl";
+const newPassword = process.argv[3] || process.env.RESET_PASSWORD_VALUE;
+const productionDatabaseUrl =
+  process.env.DIRECT_URL ||
+  process.env.DATABASE_URL ||
+  process.env.SUPABASE_DIRECT_URL ||
+  process.env.SUPABASE_DATABASE_URL;
 
 async function main() {
+  if (!newPassword) {
+    console.error("Uso: node scripts/reset-password.mjs correo@dominio.cl nueva-clave");
+    console.error("Tambien puedes usar RESET_PASSWORD_VALUE y DIRECT_URL/DATABASE_URL por variables de entorno.");
+    process.exitCode = 1;
+    return;
+  }
+
   const hashedPassword = await hashPassword(newPassword);
 
   // 1. Supabase PostgreSQL
-  console.log("\nActualizando en Supabase PostgreSQL (Producción)...");
-  const directUrl = "postgresql://postgres.vesobzvcorxxxvdxdzqk:Vitoko.2022@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require";
-  const prisma = new PrismaClient({
-    datasources: { db: { url: directUrl } }
-  });
+  console.log("\nActualizando en PostgreSQL de produccion...");
+  const prisma = productionDatabaseUrl
+    ? new PrismaClient({ datasources: { db: { url: productionDatabaseUrl } } })
+    : null;
 
-  try {
-    const user = await prisma.appUser.upsert({
-      where: { email: targetEmail },
-      update: {
-        passwordHash: hashedPassword,
-        status: "ACTIVO",
-        role: "ADMIN"
-      },
-      create: {
-        name: "Victor Herrera",
-        email: targetEmail,
-        passwordHash: hashedPassword,
-        role: "ADMIN",
-        status: "ACTIVO"
-      }
-    });
-    console.log(`✅ Supabase: Usuario ${user.email} listo con nueva contraseña.`);
-  } catch (err) {
-    console.error("❌ Error en Supabase:", err.message);
-  } finally {
-    await prisma.$disconnect();
+  if (!prisma) {
+    console.log("PostgreSQL omitido: falta DIRECT_URL o DATABASE_URL en el entorno.");
+  } else {
+    try {
+      const user = await prisma.appUser.upsert({
+        where: { email: targetEmail },
+        update: {
+          passwordHash: hashedPassword,
+          status: "ACTIVO",
+          role: "ADMIN"
+        },
+        create: {
+          name: targetEmail.startsWith("demo") ? "Usuario Demo" : "Victor Herrera",
+          email: targetEmail,
+          passwordHash: hashedPassword,
+          role: "ADMIN",
+          status: "ACTIVO"
+        }
+      });
+      console.log(`PostgreSQL: usuario ${user.email} listo con nueva contraseña.`);
+    } catch (err) {
+      console.error("Error en PostgreSQL:", err.message);
+    } finally {
+      await prisma.$disconnect();
+    }
   }
 
   // 2. Local SQLite
@@ -65,15 +80,14 @@ async function main() {
       const stmtInsert = db.prepare("INSERT INTO app_users (id, name, email, passwordHash, role, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, 'ADMIN', 'ACTIVO', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
       stmtInsert.run(`user_${Date.now()}`, targetEmail.startsWith("demo") ? "Usuario Demo" : "Victor Herrera", targetEmail, hashedPassword);
     }
-    console.log(`✅ SQLite Local: Usuario ${targetEmail} listo con nueva contraseña.`);
+    console.log(`SQLite Local: usuario ${targetEmail} listo con nueva contraseña.`);
   } catch (err) {
-    console.error("❌ Error en SQLite Local:", err.message);
+    console.error("Error en SQLite Local:", err.message);
   }
 
   console.log("\n========================================================");
-  console.log(` CREDENCIALES CONFIGURADAS (PRODUCCIÓN & LOCAL):`);
-  console.log(` Email:      ${targetEmail}`);
-  console.log(` Contraseña: ${newPassword}`);
+  console.log(" CLAVE ACTUALIZADA");
+  console.log(` Email: ${targetEmail}`);
   console.log("========================================================\n");
 }
 

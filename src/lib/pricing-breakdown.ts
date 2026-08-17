@@ -15,8 +15,13 @@ export type CommercialPriceInfo = {
   financingVatAmount: number | null;
   estimatedFreight: number;
   estimatedRegistration: number;
+  estimatedSoap: number;
   estimatedGreenTax: number;
   estimatedPermit: number;
+  estimatedPermitCash: number;
+  estimatedPermitFinancing: number;
+  estimatedRoadCostCash: number;
+  estimatedRoadCostFinancing: number;
   estimatedKeyInHandCash: number | null;
   estimatedKeyInHandFinancing: number | null;
   creditBonusAlert: string | null;
@@ -31,7 +36,16 @@ export function getPricingBreakdown(params: {
   canonicalSegment?: string | null;
   equipmentSummary?: string | null;
   citCode?: string | null;
-  prices: Array<{ priceType: string; amount: number }>;
+  prices: Array<{
+    priceType: string;
+    amount: number;
+    status?: string | null;
+    channel?: string | null;
+    bonusName?: string | null;
+    bonusAmount?: number | null;
+    hasIva?: boolean | null;
+    effectiveFrom?: Date | string | null;
+  }>;
   customFreight?: number;
   customGreenTax?: number;
 }): CommercialPriceInfo {
@@ -86,8 +100,13 @@ export function getPricingBreakdown(params: {
     financingVatAmount,
     estimatedFreight: result.onTheRoad.freight,
     estimatedRegistration: result.onTheRoad.registrationPermit,
+    estimatedSoap: result.onTheRoad.soap,
     estimatedGreenTax: result.onTheRoad.greenTax,
     estimatedPermit: result.onTheRoad.circulatingPermit,
+    estimatedPermitCash: result.onTheRoad.circulatingPermitCash,
+    estimatedPermitFinancing: result.onTheRoad.circulatingPermitFinancing,
+    estimatedRoadCostCash: result.onTheRoad.roadCostCash,
+    estimatedRoadCostFinancing: result.onTheRoad.roadCostFinancing,
     estimatedKeyInHandCash: result.onTheRoad.totalOnTheRoadCash,
     estimatedKeyInHandFinancing: result.onTheRoad.totalOnTheRoadFinancing,
     creditBonusAlert,

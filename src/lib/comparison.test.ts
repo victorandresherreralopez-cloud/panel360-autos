@@ -33,18 +33,24 @@ const baseVersion = {
   model: { name: "Alsvin Plus" },
   prices: [
     { priceType: "LIST", amount: 10990000, status: "VIGENTE" },
-    { priceType: "CAMPAIGN", amount: 9690000, status: "VIGENTE" }
+    { priceType: "CASH", amount: 10390000, status: "VIGENTE", bonusAmount: 600000 },
+    { priceType: "FINANCING", amount: 9790000, status: "VIGENTE", bonusAmount: 600000 }
   ]
 };
 
 describe("comparison helpers", () => {
-  it("uses campaign price as final price and calculates savings against list price", () => {
+  it("keeps cash and financing prices separated and calculates client bonuses", () => {
     const comparable = toComparableVersion(baseVersion);
 
     expect(comparable.priceList).toBe(10990000);
-    expect(comparable.priceFinal).toBe(9690000);
-    expect(comparable.campaignDiscount).toBe(1300000);
-    expect(comparable.finalPriceSource).toBe("Precio campana");
+    expect(comparable.priceCash).toBe(10390000);
+    expect(comparable.priceFinancing).toBe(9790000);
+    expect(comparable.priceFinal).toBe(9790000);
+    expect(comparable.finalPriceSource).toBe("Precio Financiamiento (Mejor opción)");
+    expect(comparable.clientBonuses.brandBonus).toBe(600000);
+    expect(comparable.clientBonuses.financingBonus).toBe(600000);
+    expect(comparable.onTheRoad.totalOnTheRoadCash).toBeGreaterThan(10390000);
+    expect(comparable.onTheRoad.totalOnTheRoadFinancing).toBeGreaterThan(9790000);
   });
 
   it("marks price, CIT and equipment differences for selected vehicles", () => {
@@ -57,16 +63,20 @@ describe("comparison helpers", () => {
       transmission: "Automatica",
       prices: [
         { priceType: "LIST", amount: 13990000, status: "VIGENTE" },
-        { priceType: "CAMPAIGN", amount: 11390000, status: "VIGENTE" }
+        { priceType: "CASH", amount: 12590000, status: "VIGENTE", bonusAmount: 1400000 },
+        { priceType: "FINANCING", amount: 11990000, status: "VIGENTE", bonusAmount: 600000 }
       ]
     });
 
     const rows = buildComparisonRows([first, second]);
     const summary = buildPriceSummary([first, second]);
 
-    expect(rows.find((row) => row.key === "priceFinal")?.status).toBe("different");
+    expect(rows.find((row) => row.key === "priceCash")?.status).toBe("different");
+    expect(rows.find((row) => row.key === "onTheRoad.totalOnTheRoadCash")?.status).toBe("different");
+    expect(rows.find((row) => row.key === "onTheRoad.totalOnTheRoadFinancing")?.status).toBe("different");
     expect(rows.find((row) => row.key === "sapCode")?.status).toBe("different");
     expect(rows.find((row) => row.key === "transmission")?.status).toBe("different");
-    expect(summary.spread).toContain("$1.700.000");
+    expect(summary?.cheapestCash.id).toBe("v1");
+    expect(summary?.lowestOnTheRoadFinancing.id).toBe("v1");
   });
 });

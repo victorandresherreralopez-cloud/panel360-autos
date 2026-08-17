@@ -25,14 +25,9 @@ export const PRICE_TYPES = [
 export const SALES_STAGES = ["NUEVO", "CONTACTADO", "COTIZADO", "NEGOCIANDO", "CREDITO", "RESERVADO", "VENDIDO", "ENTREGADO"];
 
 export const VEHICLE_COMPARE_FIELDS = [
-  ["Precio lista", "priceList"],
-  ["Precio final/campana", "priceFinal"],
-  ["Bono o ahorro vs lista", "campaignDiscount"],
   ["Codigo CIT", "sapCode"],
   ["Ano modelo", "modelYear"],
   ["Cilindrada", "displacement"],
-  ["Precio contado", "priceCash"],
-  ["Precio financiamiento", "priceFinancing"],
   ["Motor", "engine"],
   ["Potencia", "power"],
   ["Torque", "torque"],

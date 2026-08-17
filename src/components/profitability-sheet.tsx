@@ -15,7 +15,18 @@ export type ProfitabilityVehicle = {
   citCode: string | null;
   listPrice: number | null;
   campaignPrice: number | null;
-  prices?: Array<{ priceType: string; amount: number }>;
+  cashPrice?: number | null;
+  financingPrice?: number | null;
+  prices?: Array<{
+    priceType: string;
+    amount: number;
+    status?: string | null;
+    channel?: string | null;
+    bonusName?: string | null;
+    bonusAmount?: number | null;
+    hasIva?: boolean | null;
+    effectiveFrom?: Date | string | null;
+  }>;
 };
 
 type ProfitabilitySheetProps = {
@@ -120,15 +131,15 @@ function stateWithVehicle(state: FormState, vehicles: ProfitabilityVehicle[], ve
   if (!vehicle) return { ...state, selectedVersionId: "" };
 
   const listPrice = vehicle.listPrice ?? 0;
-  const campaignPrice = vehicle.campaignPrice ?? listPrice;
-  const detectedBonus = listPrice && campaignPrice && listPrice > campaignPrice ? listPrice - campaignPrice : 0;
+  const salePrice = vehicle.cashPrice ?? vehicle.campaignPrice ?? listPrice;
+  const detectedBonus = listPrice && salePrice && listPrice > salePrice ? listPrice - salePrice : 0;
 
   return {
     ...state,
     selectedVersionId: versionId,
     priceListGross: listPrice,
     brandBonusGross: detectedBonus,
-    salePriceWithVat: campaignPrice || listPrice
+    salePriceWithVat: salePrice || listPrice
   };
 }
 

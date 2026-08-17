@@ -701,7 +701,7 @@ export async function saveQuote(formData: FormData) {
   });
   if (!version) return;
 
-  const price = version.prices.find((item) => item.priceType === "CAMPAIGN") ?? version.prices.find((item) => item.priceType === "CASH") ?? version.prices.find((item) => item.priceType === "LIST");
+  const price = version.prices.find((item) => item.priceType === "CASH") ?? version.prices.find((item) => item.priceType === "CAMPAIGN") ?? version.prices.find((item) => item.priceType === "LIST");
   const discount = parseMoney(formData.get("discount")) ?? 0;
   const total = price?.amount ? price.amount - discount : null;
   const snapshot = {
@@ -824,4 +824,3 @@ export async function registerSale(formData: FormData) {
   revalidatePath(`/clientes/${customerId}`);
   revalidatePath("/renovaciones");
 }
-

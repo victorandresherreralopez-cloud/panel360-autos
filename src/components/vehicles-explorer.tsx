@@ -36,7 +36,16 @@ export type VehicleExplorerVersion = {
   fuelType: string | null;
   listPrice: number | null;
   bestPrice: number | null;
-  prices?: Array<{ priceType: string; amount: number }>;
+  prices?: Array<{
+    priceType: string;
+    amount: number;
+    status?: string | null;
+    channel?: string | null;
+    bonusName?: string | null;
+    bonusAmount?: number | null;
+    hasIva?: boolean | null;
+    effectiveFrom?: Date | string | null;
+  }>;
 };
 
 export type VehicleExplorerModel = {
@@ -113,6 +122,33 @@ function compareHref(versions: VehicleExplorerVersion[]) {
 
 function filterLabel(filter: QuickFilter) {
   return quickFilters.find((item) => item.id === filter)?.label ?? "Todos";
+}
+
+function RoadCostSummary({
+  total,
+  roadCost,
+  permit,
+  greenTax,
+  emptyLabel
+}: {
+  total: number | null;
+  roadCost: number;
+  permit: number;
+  greenTax: number;
+  emptyLabel: string;
+}) {
+  if (!total) return <span className="text-xs font-semibold text-steel">{emptyLabel}</span>;
+
+  return (
+    <div className="min-w-36">
+      <div className="font-black text-ink">{formatCLP(total)}</div>
+      <div className="mt-0.5 grid gap-0.5 text-[10px] font-semibold leading-4 text-steel">
+        <span>Gastos: {formatCLP(roadCost)}</span>
+        <span>Imp. verde: {formatCLP(greenTax)}</span>
+        <span>Permiso: {formatCLP(permit)}</span>
+      </div>
+    </div>
+  );
 }
 
 export function VehiclesExplorer({
@@ -371,13 +407,15 @@ export function VehiclesExplorer({
 
                 <div className="overflow-x-auto">
                   {model.versions.length ? (
-                    <table className="data-table min-w-[860px]">
+                    <table className="data-table min-w-[1180px]">
                       <thead>
                         <tr>
                           <th>Version</th>
                           <th>Codigo CIT</th>
                           <th>Precio Contado</th>
-                          <th>Financiamiento (Todos Bonos)</th>
+                          <th>Puesto Calle Contado</th>
+                          <th>Precio Credito</th>
+                          <th>Puesto Calle Credito</th>
                           <th>Valor Sin IVA</th>
                           <th>Accion</th>
                         </tr>
@@ -390,7 +428,18 @@ export function VehiclesExplorer({
                             versionName: version.name,
                             segment: model.segment,
                             citCode: version.sapCode,
-                            prices: version.prices ? version.prices.map((p) => ({ priceType: p.priceType, amount: p.amount })) : []
+                            prices: version.prices
+                              ? version.prices.map((p) => ({
+                                  priceType: p.priceType,
+                                  amount: p.amount,
+                                  status: p.status,
+                                  channel: p.channel,
+                                  bonusName: p.bonusName,
+                                  bonusAmount: p.bonusAmount,
+                                  hasIva: p.hasIva,
+                                  effectiveFrom: p.effectiveFrom
+                                }))
+                              : []
                           });
 
                           return (
@@ -431,11 +480,15 @@ export function VehiclesExplorer({
                                     Neto (Factura): {formatCLP(breakdown.cashNetPrice)} + IVA
                                   </div>
                                 ) : null}
-                                {breakdown.estimatedKeyInHandCash ? (
-                                  <div className="mt-0.5 text-[10px] text-steel">
-                                    Puesto en calle: {formatCLP(breakdown.estimatedKeyInHandCash)}
-                                  </div>
-                                ) : null}
+                              </td>
+                              <td>
+                                <RoadCostSummary
+                                  total={breakdown.estimatedKeyInHandCash}
+                                  roadCost={breakdown.estimatedRoadCostCash}
+                                  permit={breakdown.estimatedPermitCash}
+                                  greenTax={breakdown.estimatedGreenTax}
+                                  emptyLabel="Sin precio contado"
+                                />
                               </td>
                               <td>
                                 {breakdown.financingPrice ? (
@@ -446,15 +499,19 @@ export function VehiclesExplorer({
                                         Bonos totales: -{formatCLP(breakdown.totalBonus)}
                                       </div>
                                     ) : null}
-                                    {breakdown.estimatedKeyInHandFinancing ? (
-                                      <div className="mt-0.5 text-[10px] text-steel">
-                                        Puesto en calle: {formatCLP(breakdown.estimatedKeyInHandFinancing)}
-                                      </div>
-                                    ) : null}
                                   </>
                                 ) : (
                                   <span className="text-xs font-semibold text-steel">Sin bono crédito</span>
                                 )}
+                              </td>
+                              <td>
+                                <RoadCostSummary
+                                  total={breakdown.estimatedKeyInHandFinancing}
+                                  roadCost={breakdown.estimatedRoadCostFinancing}
+                                  permit={breakdown.estimatedPermitFinancing}
+                                  greenTax={breakdown.estimatedGreenTax}
+                                  emptyLabel="Sin precio credito"
+                                />
                               </td>
                               <td>
                                 {breakdown.isCommercialVehicle && breakdown.cashNetPrice ? (

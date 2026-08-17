@@ -163,7 +163,7 @@ export function CompareClient({
         <>
           {/* RESUMEN COMERCIAL SUPERIOR */}
           {priceSummary ? (
-            <section className="grid gap-3 md:grid-cols-4">
+            <section className="grid gap-3 md:grid-cols-5">
               <div className="rounded-lg border border-graphite/10 bg-white/82 p-4">
                 <p className="flex items-center gap-2 text-xs font-black uppercase text-steel">
                   <BadgeDollarSign className="h-4 w-4 text-emerald-600" aria-hidden="true" />
@@ -185,13 +185,25 @@ export function CompareClient({
               <div className="rounded-lg border border-graphite/10 bg-white/82 p-4">
                 <p className="flex items-center gap-2 text-xs font-black uppercase text-steel">
                   <Truck className="h-4 w-4 text-amber-600" aria-hidden="true" />
-                  Menor Puesto en Calle
+                  Puesto Calle Contado
                 </p>
                 <p className="mt-2 text-sm font-black leading-5 text-ink">{priceSummary.lowestOnTheRoad.label}</p>
                 <p className="text-xs font-extrabold text-amber-700">
                   {priceSummary.lowestOnTheRoad.onTheRoad.totalOnTheRoadCash
                     ? formatCLP(priceSummary.lowestOnTheRoad.onTheRoad.totalOnTheRoadCash)
                     : "Estimado"}
+                </p>
+              </div>
+              <div className="rounded-lg border border-graphite/10 bg-white/82 p-4">
+                <p className="flex items-center gap-2 text-xs font-black uppercase text-steel">
+                  <Truck className="h-4 w-4 text-sky-600" aria-hidden="true" />
+                  Puesto Calle Crédito
+                </p>
+                <p className="mt-2 text-sm font-black leading-5 text-ink">{priceSummary.lowestOnTheRoadFinancing.label}</p>
+                <p className="text-xs font-extrabold text-sky-700">
+                  {priceSummary.lowestOnTheRoadFinancing.onTheRoad.totalOnTheRoadFinancing
+                    ? formatCLP(priceSummary.lowestOnTheRoadFinancing.onTheRoad.totalOnTheRoadFinancing)
+                    : "Sin precio crédito"}
                 </p>
               </div>
               <div className="rounded-lg border border-graphite/10 bg-white/82 p-4">
@@ -250,18 +262,26 @@ export function CompareClient({
                     ) : null}
 
                     {/* COSTO PUESTO EN CALLE (LLAVE EN MANO) */}
-                    <div className="mt-2 rounded bg-steel/5 p-2.5">
-                      <div className="flex items-center justify-between font-extrabold text-ink">
-                        <span>PUESTO EN CALLE:</span>
-                        <span className="text-emerald-700">
-                          {version.onTheRoad.totalOnTheRoadCash ? formatCLP(version.onTheRoad.totalOnTheRoadCash) : "Estimado"}
+                    <div className="mt-2 grid gap-2 rounded bg-steel/5 p-2.5">
+                      <div className="flex items-center justify-between gap-3 font-extrabold text-ink">
+                        <span>CALLE CONTADO</span>
+                        <span className="text-right text-emerald-700">
+                          {version.onTheRoad.totalOnTheRoadCash ? formatCLP(version.onTheRoad.totalOnTheRoadCash) : "Sin contado"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 font-extrabold text-ink">
+                        <span>CALLE CRÉDITO</span>
+                        <span className="text-right text-sky-700">
+                          {version.onTheRoad.totalOnTheRoadFinancing ? formatCLP(version.onTheRoad.totalOnTheRoadFinancing) : "Sin crédito"}
                         </span>
                       </div>
                       <div className="mt-1 flex flex-col gap-0.5 text-[10px] text-steel">
-                        <span>• Impuesto Verde: {formatCLP(version.onTheRoad.greenTax)}</span>
-                        <span>• Inscripción/RNVM: {formatCLP(version.onTheRoad.registrationPermit)}</span>
-                        <span>• Flete: {formatCLP(version.onTheRoad.freight)}</span>
-                        <span>• Permiso Circulación (Est.): {formatCLP(version.onTheRoad.circulatingPermit)}</span>
+                        <span>Impuesto Verde: {formatCLP(version.onTheRoad.greenTax)}</span>
+                        <span>Inscripción/RNVM: {formatCLP(version.onTheRoad.registrationPermit)}</span>
+                        <span>SOAP: {formatCLP(version.onTheRoad.soap)}</span>
+                        <span>Flete Osorno: {formatCLP(version.onTheRoad.freight)}</span>
+                        <span>Permiso contado: {formatCLP(version.onTheRoad.circulatingPermitCash)}</span>
+                        <span>Permiso crédito: {formatCLP(version.onTheRoad.circulatingPermitFinancing)}</span>
                       </div>
                     </div>
 

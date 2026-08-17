@@ -56,7 +56,8 @@ export default async function VehiclesPage({ searchParams }: { searchParams?: { 
           const campaignPrice = version.prices.find((p) => p.priceType === "CAMPAIGN")?.amount;
           const cashPrice = version.prices.find((p) => p.priceType === "CASH")?.amount;
           const financingPrice = version.prices.find((p) => p.priceType === "FINANCING")?.amount;
-          return campaignPrice ?? cashPrice ?? financingPrice ?? listPrice;
+          const displayPrices = [financingPrice, cashPrice, campaignPrice, listPrice].filter((price): price is number => price != null && price > 0);
+          return displayPrices.length ? Math.min(...displayPrices) : null;
         })
         .filter((price): price is number => price != null && price > 0);
 
@@ -100,6 +101,7 @@ export default async function VehiclesPage({ searchParams }: { searchParams?: { 
           const campaignPrice = version.prices.find((price) => price.priceType === "CAMPAIGN")?.amount ?? null;
           const cashPrice = version.prices.find((price) => price.priceType === "CASH")?.amount ?? null;
           const financingPrice = version.prices.find((price) => price.priceType === "FINANCING")?.amount ?? null;
+          const displayPrices = [financingPrice, cashPrice, campaignPrice, listPrice].filter((price): price is number => price != null && price > 0);
 
           return {
             id: version.id,
@@ -110,8 +112,17 @@ export default async function VehiclesPage({ searchParams }: { searchParams?: { 
             traction: version.traction,
             fuelType: version.fuelType,
             listPrice,
-            bestPrice: campaignPrice ?? cashPrice ?? financingPrice ?? listPrice,
-            prices: version.prices.map((p) => ({ priceType: p.priceType, amount: p.amount }))
+            bestPrice: displayPrices.length ? Math.min(...displayPrices) : null,
+            prices: version.prices.map((p) => ({
+              priceType: p.priceType,
+              amount: p.amount,
+              status: p.status,
+              channel: p.channel,
+              bonusName: p.bonusName,
+              bonusAmount: p.bonusAmount,
+              hasIva: p.hasIva,
+              effectiveFrom: p.effectiveFrom.toISOString()
+            }))
           };
         })
       };

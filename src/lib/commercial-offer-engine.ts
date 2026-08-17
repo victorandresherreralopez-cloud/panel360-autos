@@ -1,5 +1,3 @@
-import { formatCLP } from "./format";
-
 export type CommercialScenario = {
   key: "LISTA" | "CONTADO" | "FINANCING" | "FINANCIAMIENTO" | "CAMPAIGN" | "DERCO_CL" | "PREVENTA";
   label: string;
@@ -30,8 +28,13 @@ export type CommercialOfferEngineResult = {
     isCommercialVehicle: boolean;
     greenTax: number;
     registrationPermit: number; // RNVM / Conservaduría
+    soap: number;
     freight: number;
     circulatingPermit: number;
+    circulatingPermitCash: number;
+    circulatingPermitFinancing: number;
+    roadCostCash: number;
+    roadCostFinancing: number;
     totalOnTheRoadCash: number | null;
     totalOnTheRoadFinancing: number | null;
     statusText: "DISPONIBLE" | "ESTIMADO" | "PENDIENTES_DATOS";
@@ -66,6 +69,73 @@ export type CommercialOfferEngineResult = {
   };
 };
 
+type PriceInput = {
+  priceType: string;
+  amount: number;
+  status?: string | null;
+  channel?: string | null;
+  bonusName?: string | null;
+  bonusAmount?: number | null;
+  hasIva?: boolean | null;
+  effectiveFrom?: Date | string | null;
+};
+
+const DEFAULT_FREIGHT_OSORNO = 380600;
+const DEFAULT_REGISTRATION = 82230;
+const DEFAULT_SOAP = 22000;
+const DEFAULT_GREEN_TAX_PASSENGER = 250000;
+const DEFAULT_GREEN_TAX_COMMERCIAL = 120000;
+const VAT_RATE = 1.19;
+const UTM_BY_MONTH_2026: Record<number, number> = {
+  1: 69751,
+  2: 69611,
+  3: 69889,
+  4: 69889,
+  5: 70588,
+  6: 71506,
+  7: 71649,
+  8: 71649
+};
+
+function priceEffectiveTime(price: PriceInput) {
+  if (!price.effectiveFrom) return 0;
+  const date = price.effectiveFrom instanceof Date ? price.effectiveFrom : new Date(price.effectiveFrom);
+  const time = date.getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+function latestPrice(prices: PriceInput[], predicate: (price: PriceInput) => boolean) {
+  return prices
+    .filter(predicate)
+    .sort((left, right) => priceEffectiveTime(right) - priceEffectiveTime(left))[0];
+}
+
+function isRegularChannel(price: PriceInput) {
+  return (price.channel ?? "REGULAR") === "REGULAR";
+}
+
+function round(value: number) {
+  return Math.round(Number.isFinite(value) ? value : 0);
+}
+
+function estimateCirculationPermit(grossPrice: number | null, invoiceDate = new Date()) {
+  if (!grossPrice || grossPrice <= 0) return 0;
+
+  const month = invoiceDate.getMonth() + 1;
+  const utm = UTM_BY_MONTH_2026[month] ?? UTM_BY_MONTH_2026[8];
+  const netPrice = round(grossPrice / VAT_RATE);
+  const priceInUtm = netPrice / utm;
+
+  let annualPermit = 0;
+  if (priceInUtm > 0 && priceInUtm <= 60) annualPermit = round(netPrice * 0.01);
+  if (priceInUtm > 60 && priceInUtm <= 120) annualPermit = round(netPrice * 0.02 - 0.6 * utm);
+  if (priceInUtm > 120 && priceInUtm <= 250) annualPermit = round(netPrice * 0.03 - 1.8 * utm);
+  if (priceInUtm > 250 && priceInUtm <= 400) annualPermit = round(netPrice * 0.04 - 4.3 * utm);
+  if (priceInUtm > 400) annualPermit = round(netPrice * 0.045 - 6.3 * utm);
+
+  return Math.max(0, round((annualPermit / 12) * (13 - month)));
+}
+
 export function evaluateCommercialOffers(params: {
   brandName: string;
   modelName: string;
@@ -74,7 +144,7 @@ export function evaluateCommercialOffers(params: {
   canonicalSegment?: string | null;
   equipmentSummary?: string | null;
   sapCode?: string | null;
-  prices: Array<{ priceType: string; amount: number; status?: string; channel?: string }>;
+  prices: PriceInput[];
   offers?: Array<{
     offerType: string;
     title?: string | null;
@@ -110,7 +180,7 @@ export function evaluateCommercialOffers(params: {
     sapCode,
     prices,
     offers = [],
-    customFreight = 150000,
+    customFreight = DEFAULT_FREIGHT_OSORNO,
     customGreenTax,
     preferredPayment = "INDIFERENTE"
   } = params;
@@ -118,17 +188,17 @@ export function evaluateCommercialOffers(params: {
   // Active prices filtering
   const activePrices = prices.filter((p) => p.status !== "IGNORADO" && p.status !== "REEMPLAZADO");
 
-  const listPriceObj = activePrices.find((p) => p.priceType === "LIST");
-  const campaignPriceObj = activePrices.find((p) => p.priceType === "CAMPAIGN");
-  const cashPriceObj = activePrices.find((p) => p.priceType === "CASH");
-  const financingPriceObj = activePrices.find((p) => p.priceType === "FINANCING");
-  const dercoClPriceObj = activePrices.find((p) => p.channel === "DERCO_CL" || p.priceType === "DERCO_CL");
-  const presalePriceObj = activePrices.find((p) => p.channel === "PREVENTA" || p.priceType === "PREVENTA");
+  const listPriceObj = latestPrice(activePrices, (p) => p.priceType === "LIST" && isRegularChannel(p));
+  const campaignPriceObj = latestPrice(activePrices, (p) => p.priceType === "CAMPAIGN" && isRegularChannel(p));
+  const cashPriceObj = latestPrice(activePrices, (p) => p.priceType === "CASH" && isRegularChannel(p));
+  const financingPriceObj = latestPrice(activePrices, (p) => p.priceType === "FINANCING" && isRegularChannel(p));
+  const dercoClPriceObj = latestPrice(activePrices, (p) => p.channel === "DERCO_CL" || p.priceType === "DERCO_CL");
+  const presalePriceObj = latestPrice(activePrices, (p) => p.channel === "PREVENTA" || p.priceType === "PREVENTA");
 
   const listPrice = listPriceObj?.amount ?? null;
   const campaignPrice = campaignPriceObj?.amount ?? null;
-  const cashPrice = cashPriceObj?.amount ?? campaignPrice ?? listPrice;
-  const financingPrice = financingPriceObj?.amount ?? null; // STRICTLY from DB, NO dummy fallback
+  const cashPrice = cashPriceObj?.amount ?? null;
+  const financingPrice = financingPriceObj?.amount ?? null;
   const dercoClPrice = dercoClPriceObj?.amount ?? null;
   const presalePrice = presalePriceObj?.amount ?? null;
 
@@ -146,15 +216,19 @@ export function evaluateCommercialOffers(params: {
   let eligibleScenarioName = "Precio Contado";
 
   if (preferredPayment === "CONTADO") {
-    bestEligiblePrice = dercoClPrice ?? presalePrice ?? cashPrice ?? listPrice;
+    bestEligiblePrice = dercoClPrice ?? presalePrice ?? cashPrice ?? campaignPrice ?? listPrice;
     if (dercoClPrice) eligibleScenarioName = "Precio Reserva Derco.cl (Contado)";
     else if (presalePrice) eligibleScenarioName = "Precio Preventa (Contado)";
-    else eligibleScenarioName = "Precio Contado";
+    else if (cashPrice) eligibleScenarioName = "Precio Contado";
+    else if (campaignPrice) eligibleScenarioName = "Precio Campaña Vigente";
+    else eligibleScenarioName = "Precio Lista";
   } else if (preferredPayment === "CREDITO") {
-    bestEligiblePrice = financingPrice ?? dercoClPrice ?? cashPrice ?? listPrice;
+    bestEligiblePrice = financingPrice ?? dercoClPrice ?? cashPrice ?? campaignPrice ?? listPrice;
     if (financingPrice) eligibleScenarioName = "Precio Financiamiento";
     else if (dercoClPrice) eligibleScenarioName = "Precio Reserva Derco.cl";
-    else eligibleScenarioName = "Precio Contado (Sin bono crédito disponible)";
+    else if (cashPrice) eligibleScenarioName = "Precio Contado (Sin bono crédito disponible)";
+    else if (campaignPrice) eligibleScenarioName = "Precio Campaña Vigente";
+    else eligibleScenarioName = "Precio Lista";
   } else {
     // Indiferente: mejor precio disponible
     const allAmounts = [financingPrice, dercoClPrice, presalePrice, campaignPrice, cashPrice, listPrice].filter((a): a is number => a != null && a > 0);
@@ -181,17 +255,21 @@ export function evaluateCommercialOffers(params: {
 
   // On The Road Expenses (Llave en Mano)
   const freight = customFreight;
-  const registrationPermit = 82230; // Conservaduría / Inscripción RNVM
-  const greenTax = customGreenTax ?? (isCommercialVehicle ? 120000 : 250000);
-  const basePriceForPermit = cashPrice ?? listPrice ?? 15000000;
-  const circulatingPermit = Math.round(Math.max(45000, basePriceForPermit * 0.015));
+  const registrationPermit = DEFAULT_REGISTRATION; // Conservaduría / Inscripción RNVM
+  const soap = DEFAULT_SOAP;
+  const greenTax = customGreenTax ?? (isCommercialVehicle ? DEFAULT_GREEN_TAX_COMMERCIAL : DEFAULT_GREEN_TAX_PASSENGER);
+  const circulatingPermitCash = estimateCirculationPermit(cashPrice ?? listPrice);
+  const circulatingPermitFinancing = estimateCirculationPermit(financingPrice ?? cashPrice ?? listPrice);
+  const circulatingPermit = circulatingPermitCash;
+  const roadCostCash = freight + registrationPermit + soap + greenTax + circulatingPermitCash;
+  const roadCostFinancing = freight + registrationPermit + soap + greenTax + circulatingPermitFinancing;
 
-  const totalOnTheRoadCash = cashPrice ? cashPrice + freight + registrationPermit + greenTax + circulatingPermit : null;
-  const totalOnTheRoadFinancing = financingPrice ? financingPrice + freight + registrationPermit + greenTax + circulatingPermit : null;
+  const totalOnTheRoadCash = cashPrice ? cashPrice + roadCostCash : null;
+  const totalOnTheRoadFinancing = financingPrice ? financingPrice + roadCostFinancing : null;
 
   // Client Public Bonuses
-  const brandBonus = listPrice && cashPrice && listPrice > cashPrice ? listPrice - cashPrice : 0;
-  const financingBonus = cashPrice && financingPrice && cashPrice > financingPrice ? cashPrice - financingPrice : 0;
+  const brandBonus = cashPriceObj?.bonusAmount ?? (listPrice && cashPrice && listPrice > cashPrice ? listPrice - cashPrice : 0);
+  const financingBonus = financingPriceObj?.bonusAmount ?? (cashPrice && financingPrice && cashPrice > financingPrice ? cashPrice - financingPrice : 0);
   const totalClientBonus = brandBonus + financingBonus;
 
   // Internal Closing Tool (Bono Cierre Compartido CES + Marca)
@@ -238,11 +316,16 @@ export function evaluateCommercialOffers(params: {
       isCommercialVehicle,
       greenTax,
       registrationPermit,
+      soap,
       freight,
       circulatingPermit,
+      circulatingPermitCash,
+      circulatingPermitFinancing,
+      roadCostCash,
+      roadCostFinancing,
       totalOnTheRoadCash,
       totalOnTheRoadFinancing,
-      statusText: cashPrice ? "ESTIMADO" : "PENDIENTES_DATOS"
+      statusText: cashPrice || financingPrice ? "ESTIMADO" : "PENDIENTES_DATOS"
     },
     clientBonuses: {
       brandBonus,

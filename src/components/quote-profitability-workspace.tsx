@@ -38,7 +38,7 @@ export function QuoteProfitabilityWorkspace({ vehicles, customers, today, initia
   const selectedVehicle = vehicles.find((vehicle) => vehicle.id === selectedVersionId) ?? null;
   const selectedCustomer = customers.find((customer) => customer.id === customerId) ?? null;
   const discountAmount = moneyValue(discount);
-  const basePrice = selectedVehicle?.campaignPrice ?? selectedVehicle?.listPrice ?? 0;
+  const basePrice = selectedVehicle?.cashPrice ?? selectedVehicle?.campaignPrice ?? selectedVehicle?.listPrice ?? 0;
   const quoteTotal = Math.max(0, basePrice - discountAmount);
 
   const profitabilityState = useMemo<Partial<FormState>>(
@@ -230,22 +230,40 @@ export function QuoteProfitabilityWorkspace({ vehicles, customers, today, initia
                 <p className="text-xs font-black uppercase text-slate-300 tracking-wider">
                   📦 Gastos Operacionales & Puesta en Calle (Llave en Mano)
                 </p>
-                <div className="mt-3 grid gap-2 sm:grid-cols-4 text-xs">
+                <div className="mt-3 grid gap-2 text-xs sm:grid-cols-5">
                   <div className="rounded bg-black/30 p-2.5">
-                    <span className="text-slate-400 block">Flete e Inscripción:</span>
-                    <strong className="text-white text-sm">{formatCLP(breakdown.estimatedFreight + breakdown.estimatedRegistration)}</strong>
+                    <span className="text-slate-400 block">Flete Osorno:</span>
+                    <strong className="text-white text-sm">{formatCLP(breakdown.estimatedFreight)}</strong>
+                  </div>
+                  <div className="rounded bg-black/30 p-2.5">
+                    <span className="text-slate-400 block">Inscripción + SOAP:</span>
+                    <strong className="text-white text-sm">{formatCLP(breakdown.estimatedRegistration + breakdown.estimatedSoap)}</strong>
                   </div>
                   <div className="rounded bg-black/30 p-2.5">
                     <span className="text-slate-400 block">Impuesto Verde (Est.):</span>
                     <strong className="text-white text-sm">{formatCLP(breakdown.estimatedGreenTax)}</strong>
                   </div>
                   <div className="rounded bg-black/30 p-2.5">
-                    <span className="text-slate-400 block">Permiso Circulación (Est.):</span>
-                    <strong className="text-white text-sm">{formatCLP(breakdown.estimatedPermit)}</strong>
+                    <span className="text-slate-400 block">Permiso Contado:</span>
+                    <strong className="text-white text-sm">{formatCLP(breakdown.estimatedPermitCash)}</strong>
                   </div>
-                  <div className="rounded bg-emerald-950/80 border border-emerald-500/40 p-2.5">
-                    <span className="text-emerald-400 font-bold block">TOTAL LLAVE EN MANO:</span>
-                    <strong className="text-emerald-300 text-base">{formatCLP(breakdown.estimatedKeyInHandCash)}</strong>
+                  <div className="rounded bg-black/30 p-2.5">
+                    <span className="text-slate-400 block">Permiso Crédito:</span>
+                    <strong className="text-white text-sm">{formatCLP(breakdown.estimatedPermitFinancing)}</strong>
+                  </div>
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <div className="rounded bg-emerald-950/80 border border-emerald-500/40 p-3">
+                    <span className="text-emerald-400 font-bold block text-xs">VALOR PUESTO EN CALLE CONTADO</span>
+                    <strong className="text-emerald-300 text-xl">{formatCLP(breakdown.estimatedKeyInHandCash)}</strong>
+                    <p className="mt-1 text-xs text-emerald-300/75">Precio contado + {formatCLP(breakdown.estimatedRoadCostCash)} de gastos.</p>
+                  </div>
+                  <div className="rounded bg-sky-950/80 border border-sky-500/40 p-3">
+                    <span className="text-sky-300 font-bold block text-xs">VALOR PUESTO EN CALLE CRÉDITO</span>
+                    <strong className="text-sky-200 text-xl">{breakdown.estimatedKeyInHandFinancing ? formatCLP(breakdown.estimatedKeyInHandFinancing) : "Sin precio crédito"}</strong>
+                    <p className="mt-1 text-xs text-sky-200/75">
+                      {breakdown.estimatedKeyInHandFinancing ? `Precio crédito + ${formatCLP(breakdown.estimatedRoadCostFinancing)} de gastos.` : "Falta precio FINANCING vigente para calcularlo."}
+                    </p>
                   </div>
                 </div>
               </div>

@@ -44,7 +44,7 @@ function bestPrice(
   const campaignPrice = prices.find((price) => price.priceType === "CAMPAIGN")?.amount ?? null;
   const cashPrice = prices.find((price) => price.priceType === "CASH")?.amount ?? null;
   const financingPrice = prices.find((price) => price.priceType === "FINANCING")?.amount ?? null;
-  const price = campaignPrice ?? cashPrice ?? financingPrice ?? listPrice;
+  const price = cashPrice ?? financingPrice ?? campaignPrice ?? listPrice;
   const discount = listPrice && price && listPrice > price ? listPrice - price : 0;
 
   return { listPrice, price, discount };

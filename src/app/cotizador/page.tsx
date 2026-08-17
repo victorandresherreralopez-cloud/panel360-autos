@@ -34,6 +34,8 @@ export default async function QuotePage({ searchParams }: { searchParams?: Recor
   const vehicles = versions.map((version) => {
     const listPrice = version.prices.find((price) => price.priceType === "LIST")?.amount ?? null;
     const campaignPrice = version.prices.find((price) => price.priceType === "CAMPAIGN")?.amount ?? null;
+    const cashPrice = version.prices.find((price) => price.priceType === "CASH")?.amount ?? null;
+    const financingPrice = version.prices.find((price) => price.priceType === "FINANCING")?.amount ?? null;
     return {
       id: version.id,
       label: `${version.brand.name} ${version.model.name} ${version.name}`,
@@ -45,7 +47,18 @@ export default async function QuotePage({ searchParams }: { searchParams?: Recor
       citCode: version.sapCode,
       listPrice,
       campaignPrice,
-      prices: version.prices.map((p) => ({ priceType: p.priceType, amount: p.amount }))
+      cashPrice,
+      financingPrice,
+      prices: version.prices.map((p) => ({
+        priceType: p.priceType,
+        amount: p.amount,
+        status: p.status,
+        channel: p.channel,
+        bonusName: p.bonusName,
+        bonusAmount: p.bonusAmount,
+        hasIva: p.hasIva,
+        effectiveFrom: p.effectiveFrom.toISOString()
+      }))
     };
   });
 

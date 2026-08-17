@@ -134,7 +134,8 @@ export default async function ClientInFrontPage({ searchParams }: { searchParams
         ?? version.prices.find((item) => item.priceType === "FINANCING")?.amount
         ?? null;
       const hasPendingPrice = version.prices.length > 0 && !version.prices.some((p) => p.status === "VIGENTE");
-      const price = campaignPrice ?? cashPrice ?? financingPrice ?? listPrice;
+      const wantsCredit = financing.includes("Credito");
+      const price = wantsCredit && financingPrice ? financingPrice : cashPrice ?? financingPrice ?? campaignPrice ?? listPrice;
       const detectedBonus = listPrice && price && listPrice > price ? listPrice - price : 0;
 
       const haystack = normalizeText(

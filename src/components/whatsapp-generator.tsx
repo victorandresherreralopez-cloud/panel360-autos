@@ -25,6 +25,7 @@ export function WhatsAppGenerator({ versions }: { versions: VersionOption[] }) {
     const campaignPrice = selected.prices.find((price) => price.priceType === "CAMPAIGN")?.amount;
     const listPrice = selected.prices.find((price) => price.priceType === "LIST")?.amount;
     const cashPrice = selected.prices.find((price) => price.priceType === "CASH")?.amount;
+    const financingPrice = selected.prices.find((price) => price.priceType === "FINANCING")?.amount;
     return [
       `Hola ${customerName || "[Nombre]"}, tal como conversamos le envío la información del:`,
       "",
@@ -36,7 +37,8 @@ export function WhatsAppGenerator({ versions }: { versions: VersionOption[] }) {
       "",
       `Precio lista: ${formatCLP(listPrice)}`,
       `Precio contado: ${formatCLP(cashPrice)}`,
-      `Precio campaña: ${formatCLP(campaignPrice)}`,
+      `Precio crédito: ${formatCLP(financingPrice)}`,
+      campaignPrice ? `Precio campaña: ${formatCLP(campaignPrice)}` : null,
       "",
       "Principales características:",
       selected.equipmentSummary || "Información no disponible en las fuentes cargadas",
@@ -44,7 +46,7 @@ export function WhatsAppGenerator({ versions }: { versions: VersionOption[] }) {
       "Promoción vigente hasta: Vigencia no informada",
       "",
       "Quedo atento a cualquier consulta."
-    ].join("\n");
+    ].filter((line): line is string => line !== null).join("\n");
   }, [customerName, selected]);
 
   return (

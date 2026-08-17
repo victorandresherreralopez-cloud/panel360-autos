@@ -30,7 +30,16 @@ type VersionForCompare = {
   cargoCapacity: string | null;
   warranty: string | null;
   equipmentSummary: string | null;
-  prices: { priceType: string; amount: number; status: string; channel?: string }[];
+  prices: {
+    priceType: string;
+    amount: number;
+    status: string;
+    channel?: string | null;
+    bonusName?: string | null;
+    bonusAmount?: number | null;
+    hasIva?: boolean | null;
+    effectiveFrom?: Date | string | null;
+  }[];
   brand: { name: string };
   model: { name: string; segment?: string | null; canonicalSegment?: string | null };
 };
@@ -134,9 +143,12 @@ export function buildComparisonRows(versions: ComparableVersion[]) {
     // PUESTO EN CALLE
     { key: "onTheRoad.greenTax", label: "Impuesto Verde (Est.)", formatter: (_: any, v: ComparableVersion) => formatCLP(v.onTheRoad.greenTax) },
     { key: "onTheRoad.registrationPermit", label: "Inscripcion / RNVM", formatter: (_: any, v: ComparableVersion) => formatCLP(v.onTheRoad.registrationPermit) },
-    { key: "onTheRoad.freight", label: "Flete Estimado", formatter: (_: any, v: ComparableVersion) => formatCLP(v.onTheRoad.freight) },
-    { key: "onTheRoad.circulatingPermit", label: "Permiso Circulacion (Est.)", formatter: (_: any, v: ComparableVersion) => formatCLP(v.onTheRoad.circulatingPermit) },
-    { key: "onTheRoad.totalOnTheRoadCash", label: "TOTAL Puesto en Calle (Contado)", formatter: (_: any, v: ComparableVersion) => (v.onTheRoad.totalOnTheRoadCash ? formatCLP(v.onTheRoad.totalOnTheRoadCash) : "Pendiente") },
+    { key: "onTheRoad.soap", label: "Seguro Obligatorio SOAP", formatter: (_: any, v: ComparableVersion) => formatCLP(v.onTheRoad.soap) },
+    { key: "onTheRoad.freight", label: "Flete Osorno", formatter: (_: any, v: ComparableVersion) => formatCLP(v.onTheRoad.freight) },
+    { key: "onTheRoad.circulatingPermitCash", label: "Permiso Circulacion Contado (Est.)", formatter: (_: any, v: ComparableVersion) => formatCLP(v.onTheRoad.circulatingPermitCash) },
+    { key: "onTheRoad.circulatingPermitFinancing", label: "Permiso Circulacion Credito (Est.)", formatter: (_: any, v: ComparableVersion) => formatCLP(v.onTheRoad.circulatingPermitFinancing) },
+    { key: "onTheRoad.totalOnTheRoadCash", label: "TOTAL Puesto en Calle Contado", formatter: (_: any, v: ComparableVersion) => (v.onTheRoad.totalOnTheRoadCash ? formatCLP(v.onTheRoad.totalOnTheRoadCash) : "Pendiente") },
+    { key: "onTheRoad.totalOnTheRoadFinancing", label: "TOTAL Puesto en Calle Credito", formatter: (_: any, v: ComparableVersion) => (v.onTheRoad.totalOnTheRoadFinancing ? formatCLP(v.onTheRoad.totalOnTheRoadFinancing) : "Sin precio credito") },
 
     // BENEFICIOS CLIENTE
     { key: "clientBonuses.brandBonus", label: "Bono Marca", formatter: (_: any, v: ComparableVersion) => (v.clientBonuses.brandBonus ? formatCLP(v.clientBonuses.brandBonus) : "Sin bono") },
@@ -190,12 +202,14 @@ export function buildPriceSummary(versions: ComparableVersion[]) {
   let cheapestCash = versions[0];
   let cheapestFinancing = versions[0];
   let lowestOnTheRoad = versions[0];
+  let lowestOnTheRoadFinancing = versions[0];
   let highestBonus = versions[0];
 
   for (const v of versions) {
     if ((v.priceCash ?? Number.MAX_SAFE_INTEGER) < (cheapestCash.priceCash ?? Number.MAX_SAFE_INTEGER)) cheapestCash = v;
     if ((v.priceFinancing ?? Number.MAX_SAFE_INTEGER) < (cheapestFinancing.priceFinancing ?? Number.MAX_SAFE_INTEGER)) cheapestFinancing = v;
     if ((v.onTheRoad.totalOnTheRoadCash ?? Number.MAX_SAFE_INTEGER) < (lowestOnTheRoad.onTheRoad.totalOnTheRoadCash ?? Number.MAX_SAFE_INTEGER)) lowestOnTheRoad = v;
+    if ((v.onTheRoad.totalOnTheRoadFinancing ?? Number.MAX_SAFE_INTEGER) < (lowestOnTheRoadFinancing.onTheRoad.totalOnTheRoadFinancing ?? Number.MAX_SAFE_INTEGER)) lowestOnTheRoadFinancing = v;
     if (v.clientBonuses.totalClientBonus > highestBonus.clientBonuses.totalClientBonus) highestBonus = v;
   }
 
@@ -203,6 +217,7 @@ export function buildPriceSummary(versions: ComparableVersion[]) {
     cheapestCash,
     cheapestFinancing,
     lowestOnTheRoad,
+    lowestOnTheRoadFinancing,
     highestBonus
   };
 }
