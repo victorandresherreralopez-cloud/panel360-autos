@@ -64,10 +64,21 @@ export default async function VehiclesPage({ searchParams }: { searchParams?: { 
       const fromPrice = versionBestPrices.length ? Math.min(...versionBestPrices) : null;
       const cleanModel = normalizeText(model.name).replace(/[^a-z0-9]/g, "");
 
+      const matchesModelName = (sheet: (typeof technicalSheets)[number]) =>
+        normalizeText(sheet.originalName).replace(/[^a-z0-9]/g, "").includes(cleanModel);
+      // Preferimos SIEMPRE el PDF real de la ficha (S3 de Derco), nunca la pagina
+      // web derco.cl: de lo contrario el boton "descargar ficha" saca al usuario del
+      // sistema. Los documentos web son tipo "DERCO WEB" / extension .html.
+      const isPdfFicha = (sheet: (typeof technicalSheets)[number]) =>
+        sheet.type === "FICHA TECNICA DERCO" || /\.pdf$/i.test(sheet.originalName);
+      const brandMatches = technicalSheets.filter((sheet) => sheet.brandId === brand.id && matchesModelName(sheet));
+      const anyMatches = technicalSheets.filter(matchesModelName);
       const modelSheet =
         (model as any).technicalSheet ??
-        technicalSheets.find((sheet) => sheet.brandId === brand.id && normalizeText(sheet.originalName).replace(/[^a-z0-9]/g, "").includes(cleanModel)) ??
-        technicalSheets.find((sheet) => normalizeText(sheet.originalName).replace(/[^a-z0-9]/g, "").includes(cleanModel)) ??
+        brandMatches.find(isPdfFicha) ??
+        anyMatches.find(isPdfFicha) ??
+        brandMatches[0] ??
+        anyMatches[0] ??
         null;
       const modelAidAlerts = commercialAidAlerts.filter((alert) => commercialAidMatchesVehicle(alert, brand.name, model.name)).slice(0, 3);
 
