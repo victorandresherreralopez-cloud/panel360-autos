@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Copy, ExternalLink, Mail, Printer, RotateCcw } from "lucide-react";
+import { Copy, Download, ExternalLink, Mail, Printer, RotateCcw } from "lucide-react";
 import { formatCLP } from "@/lib/format";
+import { sendRentabilidadEmail } from "@/app/rentabilidad/email-action";
 
 export type ProfitabilityVehicle = {
   id: string;
@@ -227,18 +228,16 @@ function SummaryLine({ label, value, strong = false }: { label: string; value: n
   );
 }
 
-type PrintRow = { label: string; value: number | string; strong?: boolean };
+type PrintRow = { label: string; value: number | string; neto?: number; strong?: boolean };
 
-function optionalRow(label: string, value: number): PrintRow[] {
-  return value ? [{ label, value }] : [];
-}
-
-function PrintTable({ title, rows }: { title: string; rows: PrintRow[] }) {
+function PrintTable({ title, rows, showNeto = false }: { title: string; rows: PrintRow[]; showNeto?: boolean }) {
   return (
     <table className="pr-table">
       <thead>
         <tr>
-          <th colSpan={2}>{title}</th>
+          <th>{title}</th>
+          <th className="pr-amount">Bruto</th>
+          {showNeto ? <th className="pr-amount">Neto</th> : null}
         </tr>
       </thead>
       <tbody>
@@ -246,6 +245,7 @@ function PrintTable({ title, rows }: { title: string; rows: PrintRow[] }) {
           <tr key={`${title}-${index}`} className={row.strong ? "pr-strong" : undefined}>
             <td>{row.label}</td>
             <td className="pr-amount">{typeof row.value === "number" ? formatCLP(row.value) : row.value}</td>
+            {showNeto ? <td className="pr-amount">{row.neto != null ? formatCLP(row.neto) : ""}</td> : null}
           </tr>
         ))}
       </tbody>
@@ -259,6 +259,8 @@ export function ProfitabilitySheet({ vehicles, today, initialState, syncKey, hid
   const [greenTaxStatus, setGreenTaxStatus] = useState("");
   const [loadingPermit, setLoadingPermit] = useState(false);
   const [loadingGreenTax, setLoadingGreenTax] = useState(false);
+  const [emailStatus, setEmailStatus] = useState("");
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   const selectedVehicle = vehicles.find((vehicle) => vehicle.id === state.selectedVersionId) ?? null;
 
@@ -334,26 +336,98 @@ export function ProfitabilitySheet({ vehicles, today, initialState, syncKey, hid
   const estimatedPermit = estimateCirculationPermit(totals.priceListFinalNet, state.invoiceDate);
   const lasCondesText = `Valor neto: ${totals.priceListFinalNet} | Fecha factura: ${state.invoiceDate}${estimatedPermit ? ` | Permiso estimado: ${estimatedPermit}` : ""}`;
   const siiText = `Marca: ${selectedVehicle?.brandName ?? ""} | Modelo: ${selectedVehicle?.modelName ?? ""} ${selectedVehicle?.versionName ?? ""} | CIT: ${selectedVehicle?.citCode ?? "PENDIENTE"} | Precio venta con IVA: ${siiSalePrice}`;
-  const emailSubject = encodeURIComponent(`Hoja de rentabilidad ${selectedVehicle?.label ?? ""}`.trim());
-  const emailBody = encodeURIComponent(
-    [
-      "Hoja de rentabilidad",
-      `Cliente: ${state.customerName || "No informado"}`,
-      `Vehiculo: ${selectedVehicle?.label ?? "No seleccionado"}`,
-      `Codigo CIT: ${selectedVehicle?.citCode ?? "Pendiente"}`,
-      `Precio Lista Final neto: ${formatCLP(totals.priceListFinalNet)}`,
-      `Imp. Fuentes Movs.: ${formatCLP(state.greenTax)}`,
-      `Permiso Circulacion: ${formatCLP(state.circulationPermit)}`,
-      `Precio de venta: ${formatCLP(totals.saleTotal)}`,
-      `Margen total: ${formatCLP(totals.totalMarginGross)}`,
-      state.notes ? `Notas: ${state.notes}` : ""
-    ]
-      .filter(Boolean)
-      .join("\n")
-  );
-
   const copyText = async (text: string) => {
     await navigator.clipboard.writeText(text);
+  };
+
+  // Imprimir / Descargar PDF: usa el dialogo del navegador (destino "Guardar como PDF").
+  // Ajustamos el titulo del documento para que el PDF quede con un nombre util.
+  const printSheet = () => {
+    const previousTitle = document.title;
+    const cleanLabel = (selectedVehicle?.label ?? "vehiculo").replace(/[^a-zA-Z0-9]+/g, "-");
+    const cleanClient = (state.customerName || "cliente").replace(/[^a-zA-Z0-9]+/g, "-");
+    document.title = `Rentabilidad_${cleanLabel}_${cleanClient}_${state.invoiceDate || today}`;
+    window.print();
+    window.setTimeout(() => {
+      document.title = previousTitle;
+    }, 1500);
+  };
+
+  const buildEmailRows = () =>
+    [
+      ["Precio Lista Unidad", state.priceListGross],
+      ["Bono Marca (-)", state.brandBonusGross],
+      ["Precio Lista Final", totals.priceListFinalGross],
+      ["Flete Osorno", state.fleteOsorno],
+      ["Pisos de goma", state.rubberFloor],
+      ["Set de Seguridad", state.safetyKit],
+      ["Trins", state.trins],
+      ["ACC Grabado PPU + Gardex", state.accGrabado],
+      ["Mantencion", state.maintenance],
+      ["Intereses / gastos", state.interests],
+      ["Otros", state.others],
+      ["Inscripcion", state.registration],
+      ["Imp. Fuentes Movs. (verde)", state.greenTax],
+      ["Seguro Obligatorio (SOAP)", state.soap],
+      ["Permiso Circulacion", state.circulationPermit],
+      ["ZQDV Desct. S. Escobar", state.discountSergio],
+      ["Z104 Amicar S. Escobar", state.amicarSergio],
+      ["Z127 Amicar Marca", state.amicarMarca],
+      ["Z126 Aporte adic. Marca", state.aporteAdicMarca],
+      ["Z124 Aporte Ptte. Marca", state.aportePtteMarca],
+      ["Retoma", state.tradeInValue],
+      ["Total ingresos", totals.totalIncome],
+      ["Total descuentos", totals.totalDiscounts],
+      ["Precio de venta", totals.saleTotal],
+      ["A pagar cliente", totals.customerPayment],
+      ["Margen total bruto", totals.totalMarginGross],
+      ["Margen total neto", totals.marginNet],
+      ["Rentabilidad", `${(totals.marginRatio * 100).toFixed(2)}%`]
+    ] as Array<[string, number | string]>;
+
+  const buildEmailHtml = () => {
+    const rowsHtml = buildEmailRows()
+      .map(
+        ([label, value]) =>
+          `<tr><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb">${label}</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${typeof value === "number" ? formatCLP(value) : value}</td></tr>`
+      )
+      .join("");
+    return `<div style="font-family:Arial,sans-serif;color:#111827;max-width:640px;margin:0 auto">
+      <h2 style="margin:0 0 4px">Hoja de Rentabilidad</h2>
+      <p style="margin:0 0 2px;color:#b45309;font-weight:bold">Sergio Escobar Automotriz</p>
+      <p style="margin:0 0 12px;color:#374151">${selectedVehicle?.label ?? "Vehiculo no seleccionado"} — Cliente: ${state.customerName || "-"} — Fecha factura: ${state.invoiceDate || "-"}</p>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">${rowsHtml}</table>
+      ${state.notes ? `<p style="margin-top:12px;color:#374151"><strong>Notas:</strong> ${state.notes}</p>` : ""}
+      <p style="margin-top:16px;color:#9ca3af;font-size:11px">Sistema creado por Victor Herrera</p>
+    </div>`;
+  };
+
+  const handleSendEmail = async () => {
+    setEmailStatus("");
+    const to = state.customerEmail.trim();
+    if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+      setEmailStatus("⚠️ Ingresa un correo de cliente valido primero.");
+      return;
+    }
+    setSendingEmail(true);
+    try {
+      const result = await sendRentabilidadEmail({
+        to,
+        subject: `Hoja de rentabilidad ${selectedVehicle?.label ?? ""}`.trim(),
+        html: buildEmailHtml()
+      });
+      if (result.ok) {
+        setEmailStatus(`✅ Correo enviado a ${to}`);
+      } else if (result.reason === "RESEND_NOT_CONFIGURED") {
+        setEmailStatus("⚠️ El envio de correo aun no esta activado (falta configurar Resend en el servidor).");
+      } else {
+        setEmailStatus(`No se pudo enviar: ${result.reason ?? "error desconocido"}`);
+      }
+    } catch (error) {
+      setEmailStatus(error instanceof Error ? error.message : "No se pudo enviar el correo.");
+    } finally {
+      setSendingEmail(false);
+    }
   };
 
   const consultPermit = async () => {
@@ -495,19 +569,26 @@ export function ProfitabilitySheet({ vehicles, today, initialState, syncKey, hid
               Cliente: {state.customerName || "-"} | Codigo CIT: {selectedVehicle?.citCode ?? "Pendiente en lista"}
             </p>
           </div>
-          <div className="no-print flex flex-wrap gap-2">
-            <button className="btn btn-secondary" type="button" onClick={() => setState({ ...defaultState, invoiceDate: today })}>
-              <RotateCcw className="h-4 w-4" aria-hidden="true" />
-              Limpiar
-            </button>
-            <button className="btn btn-primary" type="button" onClick={() => window.print()}>
-              <Printer className="h-4 w-4" aria-hidden="true" />
-              Imprimir
-            </button>
-            <a className="btn btn-secondary" href={`mailto:${state.customerEmail}?subject=${emailSubject}&body=${emailBody}`}>
-              <Mail className="h-4 w-4" aria-hidden="true" />
-              Enviar correo
-            </a>
+          <div className="no-print flex flex-col items-end gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
+              <button className="btn btn-secondary" type="button" onClick={() => setState({ ...defaultState, invoiceDate: today })}>
+                <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                Limpiar
+              </button>
+              <button className="btn btn-secondary" type="button" onClick={printSheet}>
+                <Printer className="h-4 w-4" aria-hidden="true" />
+                Imprimir
+              </button>
+              <button className="btn btn-primary" type="button" onClick={printSheet} title='En el dialogo elige destino "Guardar como PDF"'>
+                <Download className="h-4 w-4" aria-hidden="true" />
+                Descargar PDF
+              </button>
+              <button className="btn btn-secondary" type="button" onClick={handleSendEmail} disabled={sendingEmail}>
+                <Mail className="h-4 w-4" aria-hidden="true" />
+                {sendingEmail ? "Enviando..." : "Enviar correo"}
+              </button>
+            </div>
+            {emailStatus ? <p className="text-xs font-bold text-graphite">{emailStatus}</p> : null}
           </div>
         </div>
 
@@ -629,8 +710,10 @@ export function ProfitabilitySheet({ vehicles, today, initialState, syncKey, hid
         <div className="pr-vehicle">
           <h2>{selectedVehicle?.label ?? "Vehiculo no seleccionado"}</h2>
           <p>
-            Cliente: {state.customerName || "-"} &middot; Codigo CIT: {selectedVehicle?.citCode ?? "Pendiente"}
-            {state.customerEmail ? ` · ${state.customerEmail}` : ""}
+            Cliente: {state.customerName || "-"} &middot; Correo: {state.customerEmail || "-"} &middot; Codigo CIT: {selectedVehicle?.citCode ?? "Pendiente"}
+          </p>
+          <p>
+            Marca: {selectedVehicle?.brandName ?? "-"} &middot; Modelo: {selectedVehicle ? `${selectedVehicle.modelName} ${selectedVehicle.versionName}` : "-"} &middot; Precio venta c/IVA (SII): {formatCLP(siiSalePrice)}
           </p>
         </div>
 
@@ -638,67 +721,66 @@ export function ProfitabilitySheet({ vehicles, today, initialState, syncKey, hid
           <div>
             <PrintTable
               title="Ingresos"
+              showNeto
               rows={[
-                { label: "Precio Lista Unidad", value: state.priceListGross },
-                ...optionalRow("Bono Marca (-)", state.brandBonusGross),
-                { label: "Precio Lista Final", value: totals.priceListFinalGross, strong: true },
-                ...optionalRow("Flete Osorno", state.fleteOsorno),
-                ...optionalRow("Pisos de goma", state.rubberFloor),
-                ...optionalRow("Set de Seguridad", state.safetyKit),
-                ...optionalRow("Trins", state.trins),
-                ...optionalRow("ACC Grabado PPU + Gardex", state.accGrabado),
-                ...optionalRow("Mantencion", state.maintenance),
-                ...optionalRow("Intereses / gastos", state.interests),
-                ...optionalRow("Otros", state.others)
+                { label: "Precio Lista Unidad", value: state.priceListGross, neto: net(state.priceListGross) },
+                { label: "Bono Marca (-)", value: state.brandBonusGross, neto: net(state.brandBonusGross) },
+                { label: "Precio Lista Final", value: totals.priceListFinalGross, neto: totals.priceListFinalNet, strong: true },
+                { label: "Flete Osorno", value: state.fleteOsorno, neto: net(state.fleteOsorno) },
+                { label: "Pisos de goma", value: state.rubberFloor, neto: net(state.rubberFloor) },
+                { label: "Set de Seguridad", value: state.safetyKit, neto: net(state.safetyKit) },
+                { label: "Trins", value: state.trins, neto: net(state.trins) },
+                { label: "ACC Grabado PPU + Gardex", value: state.accGrabado, neto: net(state.accGrabado) },
+                { label: "Mantencion", value: state.maintenance, neto: net(state.maintenance) },
+                { label: "Intereses / gastos", value: state.interests, neto: net(state.interests) },
+                { label: "Otros", value: state.others, neto: net(state.others) },
+                { label: "Total ingresos facturables", value: totals.invoiceableGross, neto: totals.invoiceableNet, strong: true }
               ]}
             />
             <PrintTable
               title="No facturables"
               rows={[
                 { label: "Inscripcion", value: state.registration },
-                { label: "Imp. Fuentes Movs.", value: state.greenTax },
-                { label: "Seguro Obligatorio", value: state.soap },
+                { label: "Imp. Fuentes Movs. (verde)", value: state.greenTax },
+                { label: "Seguro Obligatorio (SOAP)", value: state.soap },
                 { label: "Permiso Circulacion", value: state.circulationPermit },
                 { label: "Total no facturables", value: totals.nonInvoiceable, strong: true }
-              ]}
-            />
-            <PrintTable
-              title="Descuentos"
-              rows={[
-                ...optionalRow("ZQDV Desct. S. Escobar", state.discountSergio),
-                ...optionalRow("Z104 Amicar S. Escobar", state.amicarSergio),
-                ...optionalRow("Z127 Amicar Marca", state.amicarMarca),
-                ...optionalRow("Z126 Aporte adic. Marca", state.aporteAdicMarca),
-                ...optionalRow("Z124 Aporte Ptte. Marca", state.aportePtteMarca),
-                ...optionalRow("Retoma", state.tradeInValue),
-                { label: "Total descuentos", value: totals.totalDiscounts, strong: true }
               ]}
             />
           </div>
           <div>
             <PrintTable
-              title="Resumen"
+              title="Descuentos"
+              showNeto
               rows={[
-                { label: "Precio Lista Final bruto", value: totals.priceListFinalGross },
-                { label: "Precio Lista Final neto", value: totals.priceListFinalNet },
-                { label: "Ingresos facturables bruto", value: totals.invoiceableGross },
-                { label: "Ingresos facturables neto", value: totals.invoiceableNet },
-                { label: "No facturables", value: totals.nonInvoiceable },
+                { label: "ZQDV Desct. S. Escobar", value: state.discountSergio, neto: net(state.discountSergio) },
+                { label: "Z104 Amicar S. Escobar", value: state.amicarSergio, neto: net(state.amicarSergio) },
+                { label: "Z127 Amicar Marca", value: state.amicarMarca, neto: net(state.amicarMarca) },
+                { label: "Z126 Aporte adic. Marca", value: state.aporteAdicMarca, neto: net(state.aporteAdicMarca) },
+                { label: "Z124 Aporte Ptte. Marca", value: state.aportePtteMarca, neto: net(state.aportePtteMarca) },
+                { label: "Retoma", value: state.tradeInValue, neto: net(state.tradeInValue) },
+                { label: "Total descuentos", value: totals.totalDiscounts, neto: net(totals.totalDiscounts), strong: true }
+              ]}
+            />
+            <PrintTable
+              title="Resumen de venta"
+              rows={[
                 { label: "Total ingresos", value: totals.totalIncome },
                 { label: "Total descuentos", value: totals.totalDiscounts },
                 { label: "Precio de venta", value: totals.saleTotal, strong: true },
-                { label: "A pagar cliente", value: totals.customerPayment }
+                { label: "Retoma", value: state.tradeInValue },
+                { label: "A pagar cliente", value: totals.customerPayment, strong: true }
               ]}
             />
             <PrintTable
               title="Margenes"
               rows={[
                 { label: "Margen unidad %", value: `${state.marginPercent}%` },
-                ...optionalRow("Utilidad credito", state.creditMargin),
                 { label: "Margen vehiculo bruto", value: totals.vehicleMarginGross },
+                { label: "Utilidad credito", value: state.creditMargin },
                 { label: "Margen total bruto", value: totals.totalMarginGross, strong: true },
                 { label: "Margen total neto", value: totals.marginNet },
-                { label: "Rentabilidad", value: `${(totals.marginRatio * 100).toFixed(2)}%` }
+                { label: "Rentabilidad", value: `${(totals.marginRatio * 100).toFixed(2)}%`, strong: true }
               ]}
             />
           </div>
