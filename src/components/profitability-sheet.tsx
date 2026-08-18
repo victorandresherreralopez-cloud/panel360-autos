@@ -227,6 +227,32 @@ function SummaryLine({ label, value, strong = false }: { label: string; value: n
   );
 }
 
+type PrintRow = { label: string; value: number | string; strong?: boolean };
+
+function optionalRow(label: string, value: number): PrintRow[] {
+  return value ? [{ label, value }] : [];
+}
+
+function PrintTable({ title, rows }: { title: string; rows: PrintRow[] }) {
+  return (
+    <table className="pr-table">
+      <thead>
+        <tr>
+          <th colSpan={2}>{title}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row, index) => (
+          <tr key={`${title}-${index}`} className={row.strong ? "pr-strong" : undefined}>
+            <td>{row.label}</td>
+            <td className="pr-amount">{typeof row.value === "number" ? formatCLP(row.value) : row.value}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 export function ProfitabilitySheet({ vehicles, today, initialState, syncKey, hideVehicleSelector = false }: ProfitabilitySheetProps) {
   const [state, setState] = useState<FormState>(() => buildState(vehicles, today, initialState));
   const [permitStatus, setPermitStatus] = useState("");
@@ -584,6 +610,112 @@ export function ProfitabilitySheet({ vehicles, today, initialState, syncKey, hid
           <p className="text-sm font-semibold text-ink">Nombre y firma jefe sucursal:</p>
           <div className="mt-10 h-px w-80 bg-graphite/40" />
         </div>
+      </section>
+
+      {/* Informe dedicado para impresion / PDF: formato documento limpio (solo visible al imprimir) */}
+      <section className="print-report">
+        <div className="pr-head">
+          <div>
+            <h1>Hoja de Rentabilidad</h1>
+            <p className="pr-brand">Sergio Escobar Automotriz</p>
+          </div>
+          <div className="pr-meta">
+            <p><strong>Fecha factura:</strong> {state.invoiceDate || "-"}</p>
+            <p><strong>Nota venta:</strong> {state.orderNumber || "-"}</p>
+            <p><strong>Interno:</strong> {state.internalNumber || "-"}</p>
+          </div>
+        </div>
+
+        <div className="pr-vehicle">
+          <h2>{selectedVehicle?.label ?? "Vehiculo no seleccionado"}</h2>
+          <p>
+            Cliente: {state.customerName || "-"} &middot; Codigo CIT: {selectedVehicle?.citCode ?? "Pendiente"}
+            {state.customerEmail ? ` · ${state.customerEmail}` : ""}
+          </p>
+        </div>
+
+        <div className="pr-cols">
+          <div>
+            <PrintTable
+              title="Ingresos"
+              rows={[
+                { label: "Precio Lista Unidad", value: state.priceListGross },
+                ...optionalRow("Bono Marca (-)", state.brandBonusGross),
+                { label: "Precio Lista Final", value: totals.priceListFinalGross, strong: true },
+                ...optionalRow("Flete Osorno", state.fleteOsorno),
+                ...optionalRow("Pisos de goma", state.rubberFloor),
+                ...optionalRow("Set de Seguridad", state.safetyKit),
+                ...optionalRow("Trins", state.trins),
+                ...optionalRow("ACC Grabado PPU + Gardex", state.accGrabado),
+                ...optionalRow("Mantencion", state.maintenance),
+                ...optionalRow("Intereses / gastos", state.interests),
+                ...optionalRow("Otros", state.others)
+              ]}
+            />
+            <PrintTable
+              title="No facturables"
+              rows={[
+                { label: "Inscripcion", value: state.registration },
+                { label: "Imp. Fuentes Movs.", value: state.greenTax },
+                { label: "Seguro Obligatorio", value: state.soap },
+                { label: "Permiso Circulacion", value: state.circulationPermit },
+                { label: "Total no facturables", value: totals.nonInvoiceable, strong: true }
+              ]}
+            />
+            <PrintTable
+              title="Descuentos"
+              rows={[
+                ...optionalRow("ZQDV Desct. S. Escobar", state.discountSergio),
+                ...optionalRow("Z104 Amicar S. Escobar", state.amicarSergio),
+                ...optionalRow("Z127 Amicar Marca", state.amicarMarca),
+                ...optionalRow("Z126 Aporte adic. Marca", state.aporteAdicMarca),
+                ...optionalRow("Z124 Aporte Ptte. Marca", state.aportePtteMarca),
+                ...optionalRow("Retoma", state.tradeInValue),
+                { label: "Total descuentos", value: totals.totalDiscounts, strong: true }
+              ]}
+            />
+          </div>
+          <div>
+            <PrintTable
+              title="Resumen"
+              rows={[
+                { label: "Precio Lista Final bruto", value: totals.priceListFinalGross },
+                { label: "Precio Lista Final neto", value: totals.priceListFinalNet },
+                { label: "Ingresos facturables bruto", value: totals.invoiceableGross },
+                { label: "Ingresos facturables neto", value: totals.invoiceableNet },
+                { label: "No facturables", value: totals.nonInvoiceable },
+                { label: "Total ingresos", value: totals.totalIncome },
+                { label: "Total descuentos", value: totals.totalDiscounts },
+                { label: "Precio de venta", value: totals.saleTotal, strong: true },
+                { label: "A pagar cliente", value: totals.customerPayment }
+              ]}
+            />
+            <PrintTable
+              title="Margenes"
+              rows={[
+                { label: "Margen unidad %", value: `${state.marginPercent}%` },
+                ...optionalRow("Utilidad credito", state.creditMargin),
+                { label: "Margen vehiculo bruto", value: totals.vehicleMarginGross },
+                { label: "Margen total bruto", value: totals.totalMarginGross, strong: true },
+                { label: "Margen total neto", value: totals.marginNet },
+                { label: "Rentabilidad", value: `${(totals.marginRatio * 100).toFixed(2)}%` }
+              ]}
+            />
+          </div>
+        </div>
+
+        {state.notes ? (
+          <p className="pr-notes">
+            <strong>Notas:</strong> {state.notes}
+          </p>
+        ) : null}
+
+        <div className="pr-sign">
+          <div className="pr-sign-line" />
+          <p>Nombre y firma jefe sucursal</p>
+        </div>
+
+        <p className="pr-foot">Documento generado por Panel360 Autos &middot; {today}</p>
       </section>
     </div>
   );

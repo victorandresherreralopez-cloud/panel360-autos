@@ -59,13 +59,15 @@ export default async function ProfitabilityPage({ searchParams }: { searchParams
 
   return (
     <div className="grid gap-6">
-      <PageHeader
-        title="Hoja de rentabilidad"
-        description="Completa la hoja con datos reales del catalogo, valores editables, Codigo CIT, permiso de circulacion e Imp. Fuentes Movs."
-      />
-      <Notice>
-        El permiso de circulacion se consulta con el Precio Lista Final neto y fecha de factura del dia. El Imp. Fuentes Movs. se completa con el resultado del SII usando marca, modelo, Codigo CIT y precio venta con IVA.
-      </Notice>
+      <div className="no-print grid gap-6">
+        <PageHeader
+          title="Hoja de rentabilidad"
+          description="Completa la hoja con datos reales del catalogo, valores editables, Codigo CIT, permiso de circulacion e Imp. Fuentes Movs."
+        />
+        <Notice>
+          El permiso de circulacion se consulta con el Precio Lista Final neto y fecha de factura del dia. El Imp. Fuentes Movs. se completa con el resultado del SII usando marca, modelo, Codigo CIT y precio venta con IVA.
+        </Notice>
+      </div>
       <ProfitabilitySheet vehicles={vehicles} today={today} initialState={{ selectedVersionId: searchValue(searchParams?.versionId) }} />
     </div>
   );
