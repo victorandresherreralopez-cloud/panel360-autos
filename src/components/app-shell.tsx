@@ -275,6 +275,12 @@ export function AppShell({
             </form>
           </div>
         </div>
+
+        {!isCollapsed && (
+          <p className="mt-3 px-1 text-center text-[10px] font-semibold leading-tight text-slate-400 dark:text-slate-500">
+            Sistema creado por Víctor Herrera
+          </p>
+        )}
       </aside>
 
       {/* MOBILE DRAWER OVERLAY */}

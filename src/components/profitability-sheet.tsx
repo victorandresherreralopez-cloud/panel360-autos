@@ -715,7 +715,7 @@ export function ProfitabilitySheet({ vehicles, today, initialState, syncKey, hid
           <p>Nombre y firma jefe sucursal</p>
         </div>
 
-        <p className="pr-foot">Documento generado por Panel360 Autos &middot; {today}</p>
+        <p className="pr-foot">Documento generado por Panel360 Autos &middot; {today} &middot; Sistema creado por Victor Herrera</p>
       </section>
     </div>
   );
