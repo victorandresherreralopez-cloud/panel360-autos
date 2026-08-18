@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { readStoredDocument } from "@/lib/document-storage";
 import { prisma } from "@/lib/prisma";
 import { sanitizeFilename } from "@/lib/safe-paths";
@@ -60,35 +59,58 @@ export async function GET(_request: Request, { params }: { params: { id: string 
     }
   }
 
-  // If document found, attempt serving physical file / remote URL
+  // If document found, attempt serving the real PDF as a DOWNLOAD (never redirect the
+  // user out to derco.cl / S3). We fetch remote files server-side and stream the bytes
+  // back with Content-Disposition: attachment so the browser downloads the file directly.
   if (document) {
-    // A. Direct HTTP Remote URL in storedPath (e.g. S3 PDF link)
+    const downloadName = sanitizeFilename(
+      (document.originalName || `ficha-tecnica`).replace(/\.[^.]+$/, "")
+    ) + ".pdf";
+
+    // Resolve a remote URL, either from storedPath or extracted from textSource.
+    let remoteUrl: string | null = null;
     if (document.storedPath && /^https?:\/\//i.test(document.storedPath)) {
-      return NextResponse.redirect(document.storedPath);
-    }
-
-    // B. Extract HTTP PDF URL from textSource if available
-    if (document.textSource) {
+      remoteUrl = document.storedPath;
+    } else if (document.textSource) {
       const pdfMatch = document.textSource.match(/https?:\/\/[^\s"'\)]+\.pdf/i);
-      if (pdfMatch && pdfMatch[0]) {
-        return NextResponse.redirect(pdfMatch[0]);
-      }
       const httpMatch = document.textSource.match(/https?:\/\/[^\s"'\)]+/i);
-      if (httpMatch && httpMatch[0]) {
-        return NextResponse.redirect(httpMatch[0]);
+      remoteUrl = pdfMatch?.[0] ?? httpMatch?.[0] ?? null;
+    }
+
+    // A. Remote PDF -> fetch on the server and stream as an attachment (forces download).
+    if (remoteUrl) {
+      try {
+        const upstream = await fetch(remoteUrl, { redirect: "follow" });
+        if (upstream.ok) {
+          const contentType = upstream.headers.get("content-type") ?? "";
+          const isPdf = /pdf/i.test(contentType) || /\.pdf(\?|$)/i.test(remoteUrl);
+          // Only treat it as a downloadable document when it is a real binary file
+          // (a PDF / octet-stream). If the URL returns an HTML page we skip it and
+          // fall back to the generated technical sheet below.
+          if (isPdf || /octet-stream|application\//i.test(contentType)) {
+            const buffer = Buffer.from(await upstream.arrayBuffer());
+            return new Response(buffer, {
+              headers: {
+                "Content-Type": isPdf ? "application/pdf" : (contentType || "application/octet-stream"),
+                "Content-Disposition": `attachment; filename="${downloadName}"`,
+                "Cache-Control": "private, max-age=300"
+              }
+            });
+          }
+        }
+      } catch {
+        // Network error reaching the remote file -> fall back to local / HTML below.
       }
     }
 
-    // C. Attempt reading local binary file
-    if (document.storedPath) {
+    // B. Local binary file on disk (dev environment) -> stream as attachment.
+    if (document.storedPath && !/^https?:\/\//i.test(document.storedPath)) {
       try {
         const file = await readStoredDocument(document.storedPath);
-        const filename = sanitizeFilename(document.originalName || `ficha-tecnica${document.extension ?? ".pdf"}`);
-
         return new Response(file.buffer, {
           headers: {
             "Content-Type": document.extension === ".pdf" ? "application/pdf" : file.contentType ?? "application/octet-stream",
-            "Content-Disposition": `inline; filename="${filename}"`,
+            "Content-Disposition": `attachment; filename="${downloadName}"`,
             "Cache-Control": "private, max-age=60"
           }
         });
