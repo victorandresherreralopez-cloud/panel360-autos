@@ -193,7 +193,7 @@ export function CustomerRutForm({
   }, [lookupRut, rut]);
 
   return (
-    <form action={createCustomer} className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-4">
+    <form action={createCustomer} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       <input type="hidden" name="rutLookupSource" value={source} />
 
       <label className="grid gap-2 text-sm font-black text-ink">
@@ -234,7 +234,7 @@ export function CustomerRutForm({
 
           return (
             <div
-              className={`md:col-span-3 xl:col-span-4 flex items-start justify-between gap-3 rounded-lg border p-3 text-sm font-bold ${
+              className={`sm:col-span-2 lg:col-span-3 flex items-start justify-between gap-3 rounded-lg border p-3 text-sm font-bold ${
                 message.tone === "good"
                   ? "border-emerald-200 bg-emerald-50 text-emerald-900"
                   : message.tone === "warn"
@@ -259,7 +259,7 @@ export function CustomerRutForm({
       ) : null}
 
       {lookup?.company ? (
-        <div className="md:col-span-3 xl:col-span-4 rounded-lg border border-graphite/10 bg-white p-3 text-sm">
+        <div className="sm:col-span-2 lg:col-span-3 rounded-lg border border-graphite/10 bg-white p-3 text-sm">
           <p className="text-xs font-black uppercase text-copper">Empresa (SII)</p>
           <p className="mt-1 font-black text-ink">{lookup.company.razonSocial.toUpperCase()}</p>
           {lookup.company.tipo ? <p className="text-xs font-semibold text-steel">{lookup.company.tipo}</p> : null}
@@ -268,7 +268,7 @@ export function CustomerRutForm({
       ) : null}
 
       {rutIsFilled && rutIsValid ? (
-        <div className="md:col-span-3 xl:col-span-4 rounded-lg border border-graphite/10 bg-mist/60 p-3 dark:border-white/10 dark:bg-white/5">
+        <div className="sm:col-span-2 lg:col-span-3 rounded-lg border border-graphite/10 bg-mist/60 p-3 dark:border-white/10 dark:bg-white/5">
           <p className="text-xs font-black uppercase text-copper">Consultar datos del RUT (se abre en tu navegador)</p>
           <p className="mt-1 text-xs font-semibold text-steel">Abre la fuente con el RUT ya puesto para ver y copiar los datos.</p>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -292,7 +292,7 @@ export function CustomerRutForm({
       ) : null}
 
       {lookup?.vehicles && lookup.vehicles.length > 0 ? (
-        <div className="md:col-span-3 xl:col-span-4 rounded-lg border border-graphite/10 bg-white p-3">
+        <div className="sm:col-span-2 lg:col-span-3 rounded-lg border border-graphite/10 bg-white p-3">
           <p className="text-xs font-black uppercase text-copper">Vehiculos a nombre del RUT ({lookup.vehicles.length})</p>
           <div className="mt-2 overflow-x-auto">
             <table className="w-full text-sm">
@@ -321,7 +321,7 @@ export function CustomerRutForm({
         </div>
       ) : null}
 
-      <label className="flex items-start gap-2 rounded-lg border border-graphite/10 bg-white/70 p-3 text-xs font-semibold leading-5 text-steel md:col-span-3 xl:col-span-4">
+      <label className="flex items-start gap-2 rounded-lg border border-graphite/10 bg-white/70 p-3 text-xs font-semibold leading-5 text-steel sm:col-span-2 lg:col-span-3">
         <input
           className="mt-1"
           type="checkbox"
@@ -355,7 +355,7 @@ export function CustomerRutForm({
           </option>
         ))}
       </select>
-      <input className="input md:col-span-2" name="address" value={fields.address} onChange={(event) => updateField("address", event.target.value)} placeholder="Direccion" />
+      <input className="input sm:col-span-2 lg:col-span-2" name="address" value={fields.address} onChange={(event) => updateField("address", event.target.value)} placeholder="Direccion" />
       <input className="input" name="commune" value={fields.commune} onChange={(event) => updateField("commune", event.target.value)} placeholder="Comuna" />
       <input className="input" name="city" value={fields.city} onChange={(event) => updateField("city", event.target.value)} placeholder="Ciudad" />
       <input className="input" name="region" value={fields.region} onChange={(event) => updateField("region", event.target.value)} placeholder="Region" />
@@ -394,9 +394,9 @@ export function CustomerRutForm({
           <option key={item}>{item}</option>
         ))}
       </select>
-      <textarea className="input md:col-span-3 xl:col-span-4" name="notes" placeholder="Observaciones" />
-      <textarea className="input md:col-span-3 xl:col-span-4" name="nextActionNote" placeholder="Descripcion de proxima accion" />
-      <button className="btn btn-primary w-fit md:col-span-3 xl:col-span-4" type="submit" disabled={!rutIsValid}>
+      <textarea className="input sm:col-span-2 lg:col-span-3" name="notes" placeholder="Observaciones" />
+      <textarea className="input sm:col-span-2 lg:col-span-3" name="nextActionNote" placeholder="Descripcion de proxima accion" />
+      <button className="btn btn-primary w-fit sm:col-span-2 lg:col-span-3" type="submit" disabled={!rutIsValid}>
         Crear o actualizar cliente
       </button>
     </form>

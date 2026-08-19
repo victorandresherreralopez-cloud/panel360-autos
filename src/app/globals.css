@@ -258,6 +258,7 @@ a {
   gap: 1.4rem;
   background: radial-gradient(circle at 50% 45%, #101826 0%, #05070d 70%);
   cursor: pointer;
+  z-index: 90;
 }
 
 .login-intro-out {
@@ -285,17 +286,11 @@ a {
 @keyframes introFull {
   0% {
     opacity: 0;
-    transform: scale(1.18);
-    filter: blur(12px) brightness(0.45);
-  }
-  55% {
-    opacity: 1;
-    filter: blur(0) brightness(1);
+    transform: scale(1.12);
   }
   100% {
     opacity: 1;
     transform: scale(1);
-    filter: blur(0) brightness(1);
   }
 }
 

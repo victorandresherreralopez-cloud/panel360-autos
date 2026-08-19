@@ -15,34 +15,54 @@ function playLoginSound() {
     const ctx = new AudioCtx();
     const now = ctx.currentTime;
 
-    const sweepGain = ctx.createGain();
-    sweepGain.gain.setValueAtTime(0.0001, now);
-    sweepGain.gain.exponentialRampToValueAtTime(0.22, now + 0.03);
-    sweepGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.7);
-    sweepGain.connect(ctx.destination);
-    const sweep = ctx.createOscillator();
-    sweep.type = "sine";
-    sweep.frequency.setValueAtTime(200, now);
-    sweep.frequency.exponentialRampToValueAtTime(900, now + 0.5);
-    sweep.connect(sweepGain);
-    sweep.start(now);
-    sweep.stop(now + 0.72);
+    // Reverb suave para dar cuerpo/calidad al sonido.
+    const master = ctx.createGain();
+    master.gain.value = 0.9;
+    master.connect(ctx.destination);
+    const convolver = ctx.createConvolver();
+    const reverbLen = Math.floor(ctx.sampleRate * 1.1);
+    const impulse = ctx.createBuffer(2, reverbLen, ctx.sampleRate);
+    for (let channel = 0; channel < 2; channel++) {
+      const data = impulse.getChannelData(channel);
+      for (let i = 0; i < reverbLen; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / reverbLen, 2.6);
+      }
+    }
+    convolver.buffer = impulse;
+    const reverbGain = ctx.createGain();
+    reverbGain.gain.value = 0.28;
+    convolver.connect(reverbGain);
+    reverbGain.connect(ctx.destination);
 
-    ([[523.25, 0.12], [783.99, 0.26]] as Array<[number, number]>).forEach(([freq, at]) => {
-      const osc = ctx.createOscillator();
+    // Arpegio ascendente en Do mayor (C5, E5, G5, C6) con timbre limpio.
+    const notes: Array<[number, number]> = [
+      [523.25, 0],
+      [659.25, 0.09],
+      [783.99, 0.18],
+      [1046.5, 0.28]
+    ];
+    notes.forEach(([freq, at]) => {
       const gain = ctx.createGain();
-      osc.type = "triangle";
-      osc.frequency.value = freq;
       gain.gain.setValueAtTime(0.0001, now + at);
-      gain.gain.exponentialRampToValueAtTime(0.18, now + at + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + at + 0.35);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now + at);
-      osc.stop(now + at + 0.4);
+      gain.gain.exponentialRampToValueAtTime(0.16, now + at + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + at + 0.9);
+      gain.connect(master);
+      gain.connect(convolver);
+      // dos osciladores levemente desafinados = mas riqueza (menos "sintetico")
+      [freq, freq * 1.004].forEach((f, index) => {
+        const osc = ctx.createOscillator();
+        osc.type = "sine";
+        osc.frequency.value = f;
+        const oGain = ctx.createGain();
+        oGain.gain.value = index === 0 ? 1 : 0.5;
+        osc.connect(oGain);
+        oGain.connect(gain);
+        osc.start(now + at);
+        osc.stop(now + at + 1.0);
+      });
     });
 
-    window.setTimeout(() => ctx.close().catch(() => {}), 1100);
+    window.setTimeout(() => ctx.close().catch(() => {}), 1600);
   } catch {
     // Silencioso: si el navegador bloquea el audio, el login igual funciona.
   }
