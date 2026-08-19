@@ -17,18 +17,26 @@ function loginMessage(searchParams: Record<string, string | string[] | undefined
 
 export default function LoginPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
   return (
-    <main className="min-h-screen px-4 py-8">
+    <main
+      className="relative min-h-screen bg-slate-950 px-4 py-8"
+      style={{
+        backgroundImage:
+          "linear-gradient(90deg, rgba(2,6,23,0.94) 0%, rgba(2,6,23,0.82) 42%, rgba(2,6,23,0.55) 100%), url('/login-auto.jpg')",
+        backgroundSize: "cover",
+        backgroundPosition: "center right"
+      }}
+    >
       <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-5xl items-center gap-8 lg:grid-cols-[1fr_420px]">
         <section>
-          <BrandLogo variant="auth" />
+          <BrandLogo variant="auth" forceDark />
           <p className="mt-6 text-xs font-black uppercase text-copper">Sistema privado Panel360</p>
-          <h1 className="mt-2 text-4xl font-black tracking-normal text-ink md:text-5xl dark:text-white">Asistente Comercial Automotriz</h1>
-          <p className="mt-4 max-w-xl text-base font-semibold leading-7 text-steel dark:text-slate-300">
+          <h1 className="mt-2 text-4xl font-black tracking-normal text-white md:text-5xl">Asistente Comercial Automotriz</h1>
+          <p className="mt-4 max-w-xl text-base font-semibold leading-7 text-slate-200">
             Modulo independiente para ventas, clientes, cotizaciones, rentabilidad, documentos y Vitoko IA.
           </p>
-          <div className="mt-6 grid gap-3 text-sm font-semibold text-graphite dark:text-slate-200 sm:grid-cols-2">
-            <p className="rounded-lg border border-graphite/10 bg-white/78 p-4 dark:border-white/10 dark:bg-white/5">Datos comerciales protegidos por sesion.</p>
-            <p className="rounded-lg border border-graphite/10 bg-white/78 p-4 dark:border-white/10 dark:bg-white/5">Recuperacion de clave con enlace temporal.</p>
+          <div className="mt-6 grid gap-3 text-sm font-semibold text-slate-200 sm:grid-cols-2">
+            <p className="rounded-lg border border-white/15 bg-white/10 p-4 backdrop-blur-sm">Datos comerciales protegidos por sesion.</p>
+            <p className="rounded-lg border border-white/15 bg-white/10 p-4 backdrop-blur-sm">Recuperacion de clave con enlace temporal.</p>
           </div>
         </section>
 
