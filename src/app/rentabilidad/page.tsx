@@ -1,6 +1,7 @@
 import { ProfitabilitySheet } from "@/components/profitability-sheet";
 import { Notice, PageHeader } from "@/components/ui";
 import { prisma } from "@/lib/prisma";
+import { listProfitabilitySheets } from "./sheet-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,8 @@ export default async function ProfitabilityPage({ searchParams }: { searchParams
     },
     orderBy: [{ brand: { name: "asc" } }, { model: { name: "asc" } }, { commercialOrder: "asc" }, { name: "asc" }]
   });
+
+  const savedSheets = await listProfitabilitySheets();
 
   const vehicles = versions.map((version) => {
     const listPrice = version.prices.find((price) => price.priceType === "LIST")?.amount ?? null;
@@ -68,7 +71,7 @@ export default async function ProfitabilityPage({ searchParams }: { searchParams
           El permiso de circulacion se consulta con el Precio Lista Final neto y fecha de factura del dia. El Imp. Fuentes Movs. se completa con el resultado del SII usando marca, modelo, Codigo CIT y precio venta con IVA.
         </Notice>
       </div>
-      <ProfitabilitySheet vehicles={vehicles} today={today} initialState={{ selectedVersionId: searchValue(searchParams?.versionId) }} />
+      <ProfitabilitySheet vehicles={vehicles} today={today} initialState={{ selectedVersionId: searchValue(searchParams?.versionId) }} savedSheets={savedSheets} />
     </div>
   );
 }

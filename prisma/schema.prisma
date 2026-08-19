@@ -683,3 +683,23 @@ model CommercialOffer {
   @@index([status, validUntil])
   @@map("commercial_offers")
 }
+
+model ProfitabilitySheet {
+  id             String   @id @default(cuid())
+  versionId      String?
+  vehicleLabel   String
+  customerName   String?
+  customerEmail  String?
+  orderNumber    String?
+  internalNumber String?
+  invoiceDate    String?
+  salePrice      Int?
+  marginTotal    Int?
+  data           String
+  createdBy      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([createdAt])
+  @@map("profitability_sheets")
+}

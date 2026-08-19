@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Copy, Download, ExternalLink, Mail, Printer, RotateCcw, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Copy, Download, ExternalLink, FolderOpen, Mail, Printer, RotateCcw, Save, Search, Trash2 } from "lucide-react";
 import { formatCLP } from "@/lib/format";
 import { sendRentabilidadEmail } from "@/app/rentabilidad/email-action";
+import { saveProfitabilitySheet, deleteProfitabilitySheet, type SavedSheetSummary } from "@/app/rentabilidad/sheet-actions";
 
 export type ProfitabilityVehicle = {
   id: string;
@@ -36,6 +38,7 @@ type ProfitabilitySheetProps = {
   initialState?: Partial<FormState>;
   syncKey?: string;
   hideVehicleSelector?: boolean;
+  savedSheets?: SavedSheetSummary[];
 };
 
 export type FormState = {
@@ -258,7 +261,8 @@ function PrintTable({ title, rows, showNeto = false }: { title: string; rows: Pr
   );
 }
 
-export function ProfitabilitySheet({ vehicles, today, initialState, syncKey, hideVehicleSelector = false }: ProfitabilitySheetProps) {
+export function ProfitabilitySheet({ vehicles, today, initialState, syncKey, hideVehicleSelector = false, savedSheets = [] }: ProfitabilitySheetProps) {
+  const router = useRouter();
   const [state, setState] = useState<FormState>(() => buildState(vehicles, today, initialState));
   const [permitStatus, setPermitStatus] = useState("");
   const [greenTaxStatus, setGreenTaxStatus] = useState("");
@@ -268,6 +272,8 @@ export function ProfitabilitySheet({ vehicles, today, initialState, syncKey, hid
   const [sendingEmail, setSendingEmail] = useState(false);
   const [brandFilter, setBrandFilter] = useState("");
   const [vehicleQuery, setVehicleQuery] = useState("");
+  const [saveStatus, setSaveStatus] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const selectedVehicle = vehicles.find((vehicle) => vehicle.id === state.selectedVersionId) ?? null;
 
@@ -449,6 +455,55 @@ export function ProfitabilitySheet({ vehicles, today, initialState, syncKey, hid
     } finally {
       setSendingEmail(false);
     }
+  };
+
+  const handleSaveSheet = async () => {
+    setSaveStatus("");
+    if (!selectedVehicle) {
+      setSaveStatus("⚠️ Selecciona un vehiculo antes de guardar.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const result = await saveProfitabilitySheet({
+        versionId: state.selectedVersionId || null,
+        vehicleLabel: selectedVehicle.label,
+        customerName: state.customerName || null,
+        customerEmail: state.customerEmail || null,
+        orderNumber: state.orderNumber || null,
+        internalNumber: state.internalNumber || null,
+        invoiceDate: state.invoiceDate || null,
+        salePrice: totals.saleTotal,
+        marginTotal: totals.totalMarginGross,
+        data: JSON.stringify(state)
+      });
+      if (result.ok) {
+        setSaveStatus("✅ Hoja guardada");
+        router.refresh();
+      } else if (result.reason === "TABLA_NO_CREADA") {
+        setSaveStatus("⚠️ Falta activar el guardado en la base de datos (ejecutar el SQL de despliegue).");
+      } else {
+        setSaveStatus(`No se pudo guardar: ${result.reason ?? "error"}`);
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const reopenSheet = (sheet: SavedSheetSummary) => {
+    try {
+      const parsed = JSON.parse(sheet.data) as FormState;
+      setState({ ...defaultState, ...parsed });
+      setSaveStatus(`Hoja de ${sheet.vehicleLabel} reabierta.`);
+      if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch {
+      setSaveStatus("No se pudo reabrir la hoja (datos invalidos).");
+    }
+  };
+
+  const removeSheet = async (id: string) => {
+    await deleteProfitabilitySheet(id);
+    router.refresh();
   };
 
   const consultPermit = async () => {
@@ -636,6 +691,10 @@ export function ProfitabilitySheet({ vehicles, today, initialState, syncKey, hid
                 <RotateCcw className="h-4 w-4" aria-hidden="true" />
                 Limpiar
               </button>
+              <button className="btn btn-primary" type="button" onClick={handleSaveSheet} disabled={saving}>
+                <Save className="h-4 w-4" aria-hidden="true" />
+                {saving ? "Guardando..." : "Guardar hoja"}
+              </button>
               <button className="btn btn-secondary" type="button" onClick={printSheet}>
                 <Printer className="h-4 w-4" aria-hidden="true" />
                 Imprimir
@@ -650,6 +709,7 @@ export function ProfitabilitySheet({ vehicles, today, initialState, syncKey, hid
               </button>
             </div>
             {emailStatus ? <p className="text-xs font-bold text-graphite">{emailStatus}</p> : null}
+            {saveStatus ? <p className="text-xs font-bold text-graphite">{saveStatus}</p> : null}
           </div>
         </div>
 
@@ -753,6 +813,58 @@ export function ProfitabilitySheet({ vehicles, today, initialState, syncKey, hid
           <div className="mt-10 h-px w-80 bg-graphite/40" />
         </div>
       </section>
+
+      {!hideVehicleSelector ? (
+        <section className="panel no-print rounded-lg p-5">
+          <div className="flex items-center gap-2">
+            <FolderOpen className="h-5 w-5 text-copper" aria-hidden="true" />
+            <h3 className="text-lg font-black text-ink">Hojas guardadas</h3>
+            <span className="rounded-full bg-mist px-2 py-0.5 text-xs font-bold text-steel">{savedSheets.length}</span>
+          </div>
+          {savedSheets.length === 0 ? (
+            <p className="mt-3 text-sm font-semibold text-steel">
+              Aun no hay hojas guardadas. Completa una hoja y presiona <strong>Guardar hoja</strong> para almacenarla y poder reabrirla despues.
+            </p>
+          ) : (
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs font-black uppercase text-steel">
+                    <th className="pb-2 pr-3">Fecha</th>
+                    <th className="pb-2 pr-3">Vehiculo</th>
+                    <th className="pb-2 pr-3">Cliente</th>
+                    <th className="pb-2 pr-3 text-right">Precio venta</th>
+                    <th className="pb-2 pr-3 text-right">Margen</th>
+                    <th className="pb-2 text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {savedSheets.map((sheet) => (
+                    <tr key={sheet.id} className="border-t border-graphite/10">
+                      <td className="py-2 pr-3 font-semibold text-steel">{new Date(sheet.createdAt).toLocaleDateString("es-CL")}</td>
+                      <td className="py-2 pr-3 font-bold text-ink">{sheet.vehicleLabel}</td>
+                      <td className="py-2 pr-3 font-semibold text-graphite">{sheet.customerName || "-"}</td>
+                      <td className="py-2 pr-3 text-right font-semibold text-graphite">{sheet.salePrice != null ? formatCLP(sheet.salePrice) : "-"}</td>
+                      <td className="py-2 pr-3 text-right font-semibold text-graphite">{sheet.marginTotal != null ? formatCLP(sheet.marginTotal) : "-"}</td>
+                      <td className="py-2 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button className="btn btn-secondary px-2 py-1 text-xs" type="button" onClick={() => reopenSheet(sheet)}>
+                            <FolderOpen className="h-3.5 w-3.5" aria-hidden="true" />
+                            Reabrir
+                          </button>
+                          <button className="btn btn-secondary px-2 py-1 text-xs" type="button" onClick={() => removeSheet(sheet.id)} aria-label="Eliminar hoja">
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      ) : null}
 
       {/* Informe dedicado para impresion / PDF: formato documento limpio (solo visible al imprimir) */}
       <section className="print-report">
