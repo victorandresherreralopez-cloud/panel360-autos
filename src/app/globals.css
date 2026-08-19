@@ -303,15 +303,28 @@ a {
   position: absolute;
   inset: 0;
   border-radius: 14px;
-  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.5) 48%, transparent 62%);
-  transform: translateX(-120%);
-  animation: introShine 1.5s ease 0.5s both;
+  overflow: hidden;
+  background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.45) 50%, transparent 60%);
+  opacity: 0;
+  transform: translateX(-70%);
+  animation: introShine 1.4s ease 0.5s both;
   pointer-events: none;
 }
 
 @keyframes introShine {
-  to {
-    transform: translateX(120%);
+  0% {
+    opacity: 0;
+    transform: translateX(-70%);
+  }
+  25% {
+    opacity: 1;
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(70%);
   }
 }
 
