@@ -46,7 +46,10 @@ export async function loginAction(_prevState: { error?: string } | undefined, fo
 
   await prisma.appUser.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
   setAuthCookie(createSessionToken(user));
-  redirect(isSafeRedirect(next) ? next : "/");
+  // Tras iniciar sesion vamos al dashboard con la marca ?bienvenido=1 para
+  // disparar la intro cinematografica del ingreso.
+  const dest = isSafeRedirect(next) && next !== "/" ? next : "/?bienvenido=1";
+  redirect(dest);
 }
 
 export async function logoutAction() {

@@ -12,7 +12,8 @@ import { getVitokoBrief } from "@/lib/vitoko";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams?: Record<string, string | string[] | undefined> }) {
+  const showIntro = Boolean(searchParams?.bienvenido);
   const [brandCount, modelCount, versionCount, pendingItems, activePromotions, customers, recentPriceChanges, reminders, commercialAidAlerts, vitokoBrief] =
     await Promise.all([
       prisma.brand.count(),
@@ -38,7 +39,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="grid gap-6">
-      <LoginIntro once />
+      {showIntro ? <LoginIntro /> : null}
       <PageHeader
         eyebrow="PANEL360 AUTOS — ASISTENTE COMERCIAL"
         title="Tu copiloto de ventas"
