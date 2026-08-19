@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 
-// Intro cinematografica: muestra el vehiculo, hace un barrido de luz y se
-// desvanece. Se puede saltar con un clic. Con `once`, solo se muestra una vez
-// por sesion (para el ingreso al sistema).
+// Intro cinematografica: el vehiculo aparece a PANTALLA COMPLETA con un barrido
+// de luz y luego se desvanece revelando el contenido. Se puede saltar con clic.
+// Con `once`, solo se muestra una vez por sesion (para el ingreso al sistema).
 export function LoginIntro({ once = false }: { once?: boolean }) {
   const [phase, setPhase] = useState<"in" | "out" | "done">("in");
 
@@ -24,8 +24,8 @@ export function LoginIntro({ once = false }: { once?: boolean }) {
         // sin sessionStorage: se muestra igual
       }
     }
-    const toOut = window.setTimeout(() => setPhase("out"), 2000);
-    const toDone = window.setTimeout(() => setPhase("done"), 2900);
+    const toOut = window.setTimeout(() => setPhase("out"), 2300);
+    const toDone = window.setTimeout(() => setPhase("done"), 3200);
     return () => {
       window.clearTimeout(toOut);
       window.clearTimeout(toDone);
@@ -41,17 +41,10 @@ export function LoginIntro({ once = false }: { once?: boolean }) {
       role="presentation"
       aria-hidden="true"
     >
-      <div className="login-intro-cars">
-        <div className="login-intro-car login-intro-car-1">
-          {/* img normal (no next/image) para evitar el optimizador que fallaba */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/prentacion.jpg" alt="" className="login-intro-img" />
-        </div>
-        <div className="login-intro-car login-intro-car-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/login-auto.jpg" alt="" className="login-intro-img" />
-        </div>
-      </div>
+      {/* imagen del auto de frente, a pantalla completa (img normal, sin optimizador) */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/login-auto.jpg" alt="" className="login-intro-fullimg" />
+      <span className="login-intro-shine" />
       <p className="login-intro-title">
         PANEL360 <span>Autos</span>
       </p>
