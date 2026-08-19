@@ -1,51 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { formatRut, isValidRut, normalizeRut, rutMatches } from "@/lib/rut";
+import { lookupRutProfile } from "@/lib/rut-lookup";
 
 export const dynamic = "force-dynamic";
 
-type ExternalRutProfile = {
-  firstName?: string;
-  lastName?: string;
-  fullName?: string;
-  address?: string;
-  commune?: string;
-  city?: string;
-  region?: string;
-  source?: string;
-};
-
-function splitName(profile: ExternalRutProfile) {
-  if (profile.firstName || profile.lastName) {
-    return {
-      firstName: profile.firstName ?? "",
-      lastName: profile.lastName ?? ""
-    };
-  }
-
-  const parts = String(profile.fullName ?? "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-
-  if (!parts.length) return { firstName: "", lastName: "" };
-  if (parts.length === 1) return { firstName: parts[0], lastName: "" };
-  return {
-    firstName: parts.slice(0, -2).join(" ") || parts[0],
-    lastName: parts.slice(-2).join(" ")
-  };
-}
-
 async function lookupExternalProfile(rut: string, hasConsent: boolean) {
-  const url = process.env.CUSTOMER_RUT_LOOKUP_URL;
-
-  if (!url) {
-    return {
-      status: "not_configured",
-      message: "No hay una fuente externa autorizada configurada."
-    };
-  }
-
   if (!hasConsent) {
     return {
       status: "requires_consent",
@@ -54,45 +14,28 @@ async function lookupExternalProfile(rut: string, hasConsent: boolean) {
   }
 
   try {
-    const endpoint = new URL(url);
-    endpoint.searchParams.set("rut", rut);
+    const profile = await lookupRutProfile(rut);
 
-    const response = await fetch(endpoint, {
-      headers: process.env.CUSTOMER_RUT_LOOKUP_TOKEN
-        ? { Authorization: `Bearer ${process.env.CUSTOMER_RUT_LOOKUP_TOKEN}` }
-        : undefined,
-      cache: "no-store",
-      signal: AbortSignal.timeout(7000)
-    });
-
-    if (!response.ok) {
-      return {
-        status: "error",
-        message: `La fuente externa respondio ${response.status}.`
-      };
-    }
-
-    const profile = (await response.json()) as ExternalRutProfile;
-    const name = splitName(profile);
-
-    if (!name.firstName && !profile.address) {
+    if (!profile) {
       return {
         status: "empty",
-        message: "La fuente externa no entrego datos para este RUT."
+        message: "No se encontraron datos para este RUT en las fuentes consultadas."
       };
     }
 
     return {
       status: "external_found",
-      source: profile.source ?? "FUENTE_EXTERNA_AUTORIZADA",
+      source: profile.sources.join(", ") || "FUENTE_PUBLICA",
       profile: {
-        firstName: name.firstName,
-        lastName: name.lastName,
-        address: profile.address ?? "",
-        commune: profile.commune ?? "",
-        city: profile.city ?? "",
-        region: profile.region ?? ""
-      }
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        address: profile.address,
+        commune: profile.commune,
+        city: profile.commune,
+        region: ""
+      },
+      vehicles: profile.vehicles,
+      company: profile.company
     };
   } catch (error) {
     return {

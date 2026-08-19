@@ -39,6 +39,19 @@ type LookupResult = {
     city: string;
     region: string;
   };
+  vehicles?: Array<{
+    patente: string;
+    tipo: string;
+    marca: string;
+    modelo: string;
+    anio: string;
+    motor: string;
+  }>;
+  company?: {
+    razonSocial: string;
+    tipo: string;
+    actividades: string;
+  } | null;
   source?: string;
 };
 
@@ -214,6 +227,54 @@ export function CustomerRutForm({ statuses, origins }: { statuses: Option[]; ori
             </div>
           );
         })()
+      ) : null}
+
+      {lookup?.company ? (
+        <div className="md:col-span-3 xl:col-span-4 rounded-lg border border-graphite/10 bg-white p-3 text-sm">
+          <p className="text-xs font-black uppercase text-copper">Empresa (SII)</p>
+          <p className="mt-1 font-black text-ink">{lookup.company.razonSocial.toUpperCase()}</p>
+          {lookup.company.tipo ? <p className="text-xs font-semibold text-steel">{lookup.company.tipo}</p> : null}
+          {lookup.company.actividades ? <p className="mt-1 text-xs font-semibold text-graphite">Giro: {lookup.company.actividades}</p> : null}
+        </div>
+      ) : null}
+
+      {lookup && (lookup.status === "external_found" || lookup.status === "empty") ? (
+        <p className="md:col-span-3 xl:col-span-4 text-xs font-semibold text-steel">
+          ¿Es una empresa y no aparecen sus datos?{" "}
+          <a className="font-black text-copper underline" href="https://www2.sii.cl/stc/noauthz" target="_blank" rel="noreferrer">
+            Consultar en SII (fuente oficial)
+          </a>
+        </p>
+      ) : null}
+
+      {lookup?.vehicles && lookup.vehicles.length > 0 ? (
+        <div className="md:col-span-3 xl:col-span-4 rounded-lg border border-graphite/10 bg-white p-3">
+          <p className="text-xs font-black uppercase text-copper">Vehiculos a nombre del RUT ({lookup.vehicles.length})</p>
+          <div className="mt-2 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs font-black uppercase text-steel">
+                  <th className="pb-1 pr-3">Patente</th>
+                  <th className="pb-1 pr-3">Marca</th>
+                  <th className="pb-1 pr-3">Modelo</th>
+                  <th className="pb-1 pr-3">Año</th>
+                  <th className="pb-1">Tipo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lookup.vehicles.map((vehicle, index) => (
+                  <tr key={`${vehicle.patente}-${index}`} className="border-t border-graphite/10">
+                    <td className="py-1 pr-3 font-black text-ink">{vehicle.patente}</td>
+                    <td className="py-1 pr-3 font-semibold text-graphite">{vehicle.marca}</td>
+                    <td className="py-1 pr-3 font-semibold text-graphite">{vehicle.modelo}</td>
+                    <td className="py-1 pr-3 font-semibold text-graphite">{vehicle.anio}</td>
+                    <td className="py-1 font-semibold text-steel">{vehicle.tipo}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       ) : null}
 
       <label className="flex items-start gap-2 rounded-lg border border-graphite/10 bg-white/70 p-3 text-xs font-semibold leading-5 text-steel md:col-span-3 xl:col-span-4">

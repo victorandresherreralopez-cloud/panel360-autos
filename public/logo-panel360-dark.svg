@@ -450,7 +450,7 @@
   </g>
 
   <g class="brillo-texto">
-    <text x="62" y="178" fill="#0d2e63" font-family="Inter, Montserrat, Arial, Helvetica, sans-serif" font-size="82" font-weight="900" letter-spacing="-2">PANEL</text>
+    <text x="62" y="178" fill="#e8f2ff" font-family="Inter, Montserrat, Arial, Helvetica, sans-serif" font-size="82" font-weight="900" letter-spacing="-2">PANEL</text>
     <text x="610" y="178" fill="url(#texto360)" font-family="Inter, Montserrat, Arial, Helvetica, sans-serif" font-size="86" font-weight="900" letter-spacing="-2">360</text>
     </g>
 </svg>
