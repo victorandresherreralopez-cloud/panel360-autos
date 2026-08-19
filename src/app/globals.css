@@ -272,9 +272,26 @@ a {
   }
 }
 
+.login-intro-cars {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  max-width: 96vw;
+}
+
 .login-intro-car {
   position: relative;
   animation: introCar 1.3s cubic-bezier(0.16, 0.84, 0.24, 1) both;
+}
+
+.login-intro-car-2 {
+  animation-delay: 0.22s;
+}
+
+.login-intro-car-2::after {
+  animation-delay: 0.72s;
 }
 
 @keyframes introCar {
@@ -291,10 +308,10 @@ a {
 }
 
 .login-intro-img {
-  width: min(72vw, 620px);
+  width: min(44vw, 470px);
   height: auto;
   border-radius: 14px;
-  box-shadow: 0 40px 90px rgba(220, 38, 38, 0.28);
+  box-shadow: 0 30px 70px rgba(220, 38, 38, 0.26);
 }
 
 /* Barrido de luz sobre el auto */

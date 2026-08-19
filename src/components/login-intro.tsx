@@ -41,10 +41,16 @@ export function LoginIntro({ once = false }: { once?: boolean }) {
       role="presentation"
       aria-hidden="true"
     >
-      <div className="login-intro-car">
-        {/* img normal (no next/image) para evitar el optimizador que fallaba */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/prentacion.jpg" alt="" className="login-intro-img" />
+      <div className="login-intro-cars">
+        <div className="login-intro-car login-intro-car-1">
+          {/* img normal (no next/image) para evitar el optimizador que fallaba */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/prentacion.jpg" alt="" className="login-intro-img" />
+        </div>
+        <div className="login-intro-car login-intro-car-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/login-auto.jpg" alt="" className="login-intro-img" />
+        </div>
       </div>
       <p className="login-intro-title">
         PANEL360 <span>Autos</span>
