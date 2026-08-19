@@ -22,13 +22,13 @@ export default function LoginPage({ searchParams }: { searchParams: Record<strin
         <section>
           <BrandLogo variant="auth" />
           <p className="mt-6 text-xs font-black uppercase text-copper">Sistema privado Panel360</p>
-          <h1 className="mt-2 text-4xl font-black tracking-normal text-ink md:text-5xl">Asistente Comercial Automotriz</h1>
-          <p className="mt-4 max-w-xl text-base font-semibold leading-7 text-steel">
+          <h1 className="mt-2 text-4xl font-black tracking-normal text-ink md:text-5xl dark:text-white">Asistente Comercial Automotriz</h1>
+          <p className="mt-4 max-w-xl text-base font-semibold leading-7 text-steel dark:text-slate-300">
             Modulo independiente para ventas, clientes, cotizaciones, rentabilidad, documentos y Vitoko IA.
           </p>
-          <div className="mt-6 grid gap-3 text-sm font-semibold text-graphite sm:grid-cols-2">
-            <p className="rounded-lg border border-graphite/10 bg-white/78 p-4">Datos comerciales protegidos por sesion.</p>
-            <p className="rounded-lg border border-graphite/10 bg-white/78 p-4">Recuperacion de clave con enlace temporal.</p>
+          <div className="mt-6 grid gap-3 text-sm font-semibold text-graphite dark:text-slate-200 sm:grid-cols-2">
+            <p className="rounded-lg border border-graphite/10 bg-white/78 p-4 dark:border-white/10 dark:bg-white/5">Datos comerciales protegidos por sesion.</p>
+            <p className="rounded-lg border border-graphite/10 bg-white/78 p-4 dark:border-white/10 dark:bg-white/5">Recuperacion de clave con enlace temporal.</p>
           </div>
         </section>
 
@@ -37,8 +37,8 @@ export default function LoginPage({ searchParams }: { searchParams: Record<strin
             <ShieldCheck className="h-4 w-4" aria-hidden="true" />
             Iniciar sesion
           </p>
-          <h2 className="mt-2 text-2xl font-black text-ink">Entra a tu panel</h2>
-          <p className="mb-5 mt-2 text-sm font-semibold leading-6 text-steel">Usa tu correo y clave del sistema.</p>
+          <h2 className="mt-2 text-2xl font-black text-ink dark:text-white">Entra a tu panel</h2>
+          <p className="mb-5 mt-2 text-sm font-semibold leading-6 text-steel dark:text-slate-300">Usa tu correo y clave del sistema.</p>
           <LoginForm next={firstParam(searchParams.next)} message={loginMessage(searchParams)} />
         </section>
       </div>
