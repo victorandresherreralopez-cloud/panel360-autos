@@ -23,7 +23,7 @@ export default function LoginPage({ searchParams }: { searchParams: Record<strin
       className="relative min-h-screen bg-slate-950 px-4 py-8"
       style={{
         backgroundImage:
-          "linear-gradient(90deg, rgba(2,6,23,0.93) 0%, rgba(2,6,23,0.8) 42%, rgba(2,6,23,0.5) 100%), url('/prentacion.jpg')",
+          "linear-gradient(90deg, rgba(2,6,23,0.82) 0%, rgba(2,6,23,0.6) 46%, rgba(2,6,23,0.32) 100%), url('/prentacion.jpg')",
         backgroundSize: "cover",
         backgroundPosition: "center"
       }}

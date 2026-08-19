@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 
 // Intro cinematografica: muestra el vehiculo, hace un barrido de luz y se
-// desvanece revelando el login. Se puede saltar con un clic.
-export function LoginIntro() {
+// desvanece. Se puede saltar con un clic. Con `once`, solo se muestra una vez
+// por sesion (para el ingreso al sistema).
+export function LoginIntro({ once = false }: { once?: boolean }) {
   const [phase, setPhase] = useState<"in" | "out" | "done">("in");
 
   useEffect(() => {
@@ -13,13 +13,24 @@ export function LoginIntro() {
       setPhase("done");
       return;
     }
+    if (once) {
+      try {
+        if (sessionStorage.getItem("panel360_intro_seen")) {
+          setPhase("done");
+          return;
+        }
+        sessionStorage.setItem("panel360_intro_seen", "1");
+      } catch {
+        // sin sessionStorage: se muestra igual
+      }
+    }
     const toOut = window.setTimeout(() => setPhase("out"), 2000);
     const toDone = window.setTimeout(() => setPhase("done"), 2900);
     return () => {
       window.clearTimeout(toOut);
       window.clearTimeout(toDone);
     };
-  }, []);
+  }, [once]);
 
   if (phase === "done") return null;
 
@@ -31,7 +42,9 @@ export function LoginIntro() {
       aria-hidden="true"
     >
       <div className="login-intro-car">
-        <Image src="/prentacion.jpg" alt="" width={640} height={400} priority className="login-intro-img" />
+        {/* img normal (no next/image) para evitar el optimizador que fallaba */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/prentacion.jpg" alt="" className="login-intro-img" />
       </div>
       <p className="login-intro-title">
         PANEL360 <span>Autos</span>

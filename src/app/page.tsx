@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AlertTriangle, ArrowDown, CalendarClock, CheckCircle2, FileWarning, UsersRound } from "lucide-react";
+import { LoginIntro } from "@/components/login-intro";
 import { CommercialAidPanel } from "@/components/commercial-aid-alerts";
 import { SearchForm } from "@/components/search-form";
 import { EmptyState, PageHeader, Panel, QuickLink, StatCard, StatusPill } from "@/components/ui";
@@ -37,6 +38,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="grid gap-6">
+      <LoginIntro once />
       <PageHeader
         eyebrow="PANEL360 AUTOS — ASISTENTE COMERCIAL"
         title="Tu copiloto de ventas"
