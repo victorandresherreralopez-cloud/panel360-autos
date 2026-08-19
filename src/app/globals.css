@@ -245,6 +245,95 @@ a {
   }
 }
 
+/* Intro cinematografica del login: pantalla negra, el vehiculo entra con brillo
+   y luego todo se desvanece revelando el formulario. */
+.login-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.4rem;
+  background: radial-gradient(circle at 50% 45%, #101826 0%, #05070d 70%);
+  cursor: pointer;
+}
+
+.login-intro-out {
+  animation: introOut 0.85s ease forwards;
+  pointer-events: none;
+}
+
+@keyframes introOut {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+.login-intro-car {
+  position: relative;
+  animation: introCar 1.3s cubic-bezier(0.16, 0.84, 0.24, 1) both;
+}
+
+@keyframes introCar {
+  0% {
+    opacity: 0;
+    transform: translateX(70px) scale(1.14);
+    filter: blur(9px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.login-intro-img {
+  width: min(72vw, 620px);
+  height: auto;
+  border-radius: 14px;
+  box-shadow: 0 40px 90px rgba(220, 38, 38, 0.28);
+}
+
+/* Barrido de luz sobre el auto */
+.login-intro-car::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.5) 48%, transparent 62%);
+  transform: translateX(-120%);
+  animation: introShine 1.5s ease 0.5s both;
+  pointer-events: none;
+}
+
+@keyframes introShine {
+  to {
+    transform: translateX(120%);
+  }
+}
+
+.login-intro-title {
+  opacity: 0;
+  font-size: 1.9rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  color: #ffffff;
+  animation: introTitle 0.8s ease 0.7s forwards;
+}
+
+.login-intro-title span {
+  color: #38bdf8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-intro {
+    display: none;
+  }
+}
+
 .print-report {
   display: none;
 }

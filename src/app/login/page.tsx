@@ -1,6 +1,8 @@
 import { ShieldCheck } from "lucide-react";
 import { LoginForm } from "@/components/auth-forms";
 import { BrandLogo } from "@/components/brand-logo";
+import { LoginIntro } from "@/components/login-intro";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -21,11 +23,13 @@ export default function LoginPage({ searchParams }: { searchParams: Record<strin
       className="relative min-h-screen bg-slate-950 px-4 py-8"
       style={{
         backgroundImage:
-          "linear-gradient(90deg, rgba(2,6,23,0.94) 0%, rgba(2,6,23,0.82) 42%, rgba(2,6,23,0.55) 100%), url('/login-auto.jpg')",
+          "linear-gradient(90deg, rgba(2,6,23,0.93) 0%, rgba(2,6,23,0.8) 42%, rgba(2,6,23,0.5) 100%), url('/prentacion.jpg')",
         backgroundSize: "cover",
-        backgroundPosition: "center right"
+        backgroundPosition: "center"
       }}
     >
+      <LoginIntro />
+      <ThemeToggle className="absolute right-4 top-4 z-20 flex h-10 w-10 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white backdrop-blur transition hover:bg-white/20" />
       <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-5xl items-center gap-8 lg:grid-cols-[1fr_420px]">
         <section className="login-anim login-anim-1">
           <BrandLogo variant="auth" forceDark />
