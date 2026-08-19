@@ -132,6 +132,27 @@ export function CustomerRutForm({
     setFields((current) => ({ ...current, [key]: value }));
   }
 
+  // Abre una fuente publica en una pestana nueva con el RUT ya puesto (usando la
+  // conexion del navegador del usuario). Asi consulta y copia nombre/direccion/
+  // patentes sin depender del servidor.
+  function abrirFuente(url: string) {
+    const formatted = formatRut(rut);
+    if (!formatted) return;
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = url;
+    form.target = "_blank";
+    form.rel = "noreferrer";
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = "term";
+    input.value = formatted;
+    form.appendChild(input);
+    document.body.appendChild(form);
+    form.submit();
+    form.remove();
+  }
+
   const lookupRut = useCallback(async (nextConsent = consent) => {
     const formatted = formatRut(rut);
     if (!formatted || !isValidRut(formatted)) {
@@ -246,13 +267,28 @@ export function CustomerRutForm({
         </div>
       ) : null}
 
-      {lookup && (lookup.status === "external_found" || lookup.status === "empty") ? (
-        <p className="md:col-span-3 xl:col-span-4 text-xs font-semibold text-steel">
-          ¿Es una empresa y no aparecen sus datos?{" "}
-          <a className="font-black text-copper underline" href="https://www2.sii.cl/stc/noauthz" target="_blank" rel="noreferrer">
-            Consultar en SII (fuente oficial)
-          </a>
-        </p>
+      {rutIsFilled && rutIsValid ? (
+        <div className="md:col-span-3 xl:col-span-4 rounded-lg border border-graphite/10 bg-mist/60 p-3 dark:border-white/10 dark:bg-white/5">
+          <p className="text-xs font-black uppercase text-copper">Consultar datos del RUT (se abre en tu navegador)</p>
+          <p className="mt-1 text-xs font-semibold text-steel">Abre la fuente con el RUT ya puesto para ver y copiar los datos.</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button type="button" className="btn btn-secondary text-xs" onClick={() => abrirFuente("https://www.nombrerutyfirma.com/rut")}>
+              <Search className="h-3.5 w-3.5" aria-hidden="true" />
+              Nombre y direccion
+            </button>
+            <button type="button" className="btn btn-secondary text-xs" onClick={() => abrirFuente("https://www.volanteomaleta.com/rut")}>
+              <Search className="h-3.5 w-3.5" aria-hidden="true" />
+              Patentes (vehiculos)
+            </button>
+            <button type="button" className="btn btn-secondary text-xs" onClick={() => abrirFuente("https://www.boletaofactura.com/rut")}>
+              <Search className="h-3.5 w-3.5" aria-hidden="true" />
+              Empresa (razon social)
+            </button>
+            <a className="btn btn-secondary text-xs" href="https://www2.sii.cl/stc/noauthz" target="_blank" rel="noreferrer">
+              SII (oficial)
+            </a>
+          </div>
+        </div>
       ) : null}
 
       {lookup?.vehicles && lookup.vehicles.length > 0 ? (
