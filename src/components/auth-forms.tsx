@@ -5,11 +5,54 @@ import { useFormState, useFormStatus } from "react-dom";
 import { KeyRound, LogIn, Mail, ShieldCheck } from "lucide-react";
 import { loginAction, requestPasswordResetAction, resetPasswordAction } from "@/lib/actions/auth";
 
-function SubmitButton({ children }: { children: React.ReactNode }) {
+// Sonido corto de "inicio de sesion" (power-up) generado con Web Audio,
+// sin archivos externos. Se dispara con el clic (gesto del usuario), asi el
+// navegador permite reproducirlo.
+function playLoginSound() {
+  try {
+    const AudioCtx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+
+    const sweepGain = ctx.createGain();
+    sweepGain.gain.setValueAtTime(0.0001, now);
+    sweepGain.gain.exponentialRampToValueAtTime(0.22, now + 0.03);
+    sweepGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.7);
+    sweepGain.connect(ctx.destination);
+    const sweep = ctx.createOscillator();
+    sweep.type = "sine";
+    sweep.frequency.setValueAtTime(200, now);
+    sweep.frequency.exponentialRampToValueAtTime(900, now + 0.5);
+    sweep.connect(sweepGain);
+    sweep.start(now);
+    sweep.stop(now + 0.72);
+
+    ([[523.25, 0.12], [783.99, 0.26]] as Array<[number, number]>).forEach(([freq, at]) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, now + at);
+      gain.gain.exponentialRampToValueAtTime(0.18, now + at + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + at + 0.35);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + at);
+      osc.stop(now + at + 0.4);
+    });
+
+    window.setTimeout(() => ctx.close().catch(() => {}), 1100);
+  } catch {
+    // Silencioso: si el navegador bloquea el audio, el login igual funciona.
+  }
+}
+
+function SubmitButton({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
   const { pending } = useFormStatus();
 
   return (
-    <button type="submit" className="btn btn-primary w-full" disabled={pending}>
+    <button type="submit" className="btn btn-primary w-full" disabled={pending} onClick={onClick}>
       {pending ? "Procesando..." : children}
     </button>
   );
@@ -40,7 +83,7 @@ export function LoginForm({
         <input className="input" name="password" type="password" autoComplete="current-password" placeholder="Tu clave" required />
       </label>
 
-      <SubmitButton>
+      <SubmitButton onClick={playLoginSound}>
         <LogIn className="h-4 w-4" aria-hidden="true" />
         Entrar al sistema
       </SubmitButton>

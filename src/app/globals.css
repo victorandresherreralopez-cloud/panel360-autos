@@ -201,6 +201,50 @@ a {
   transform: translateY(-1px);
 }
 
+/* Animacion de entrada del login: los elementos emergen "desde el infinito"
+   (escala desde lejos + desenfoque que se aclara + fundido). */
+@keyframes portalIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.55) translateY(26px);
+    filter: blur(8px);
+  }
+  60% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+}
+
+.login-anim {
+  opacity: 0;
+  animation: portalIn 0.75s cubic-bezier(0.16, 0.84, 0.24, 1) forwards;
+  will-change: transform, opacity, filter;
+}
+
+.login-anim-1 {
+  animation-delay: 0.06s;
+}
+
+.login-anim-2 {
+  animation-delay: 0.2s;
+}
+
+.login-anim-3 {
+  animation-delay: 0.34s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-anim {
+    opacity: 1;
+    animation: none;
+  }
+}
+
 .print-report {
   display: none;
 }

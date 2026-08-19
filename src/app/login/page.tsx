@@ -27,7 +27,7 @@ export default function LoginPage({ searchParams }: { searchParams: Record<strin
       }}
     >
       <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-5xl items-center gap-8 lg:grid-cols-[1fr_420px]">
-        <section>
+        <section className="login-anim login-anim-1">
           <BrandLogo variant="auth" forceDark />
           <p className="mt-6 text-xs font-black uppercase text-copper">Sistema privado Panel360</p>
           <h1 className="mt-2 text-4xl font-black tracking-normal text-white md:text-5xl">Asistente Comercial Automotriz</h1>
@@ -40,7 +40,7 @@ export default function LoginPage({ searchParams }: { searchParams: Record<strin
           </div>
         </section>
 
-        <section className="panel rounded-lg p-6">
+        <section className="panel login-anim login-anim-2 rounded-lg p-6">
           <p className="flex items-center gap-2 text-xs font-black uppercase text-copper">
             <ShieldCheck className="h-4 w-4" aria-hidden="true" />
             Iniciar sesion
