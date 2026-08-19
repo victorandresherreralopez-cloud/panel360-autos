@@ -71,15 +71,19 @@ a {
   color: #f8fafc;
 }
 
-.input {
-  width: 100%;
-  border-radius: 8px;
-  border: 1px solid rgba(75, 97, 119, 0.22);
-  background: rgba(255, 255, 255, 0.92);
-  padding: 0.75rem 0.9rem;
-  color: #111827;
-  outline: none;
-  transition: border-color 150ms ease, box-shadow 150ms ease;
+/* .input va en @layer components para que las utilidades de Tailwind (pl-9, pl-12,
+   etc.) siempre ganen sobre su padding y los iconos de busqueda no se encimen. */
+@layer components {
+  .input {
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid rgba(75, 97, 119, 0.22);
+    background: rgba(255, 255, 255, 0.92);
+    padding: 0.75rem 0.9rem;
+    color: #111827;
+    outline: none;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
 }
 
 .dark .input {
@@ -237,7 +241,8 @@ a {
 
   /* --- Informe de rentabilidad: formato documento limpio --- */
   @page {
-    margin: 14mm;
+    size: A4 portrait;
+    margin: 12mm;
   }
 
   /* Ocultamos el formulario interactivo y mostramos el informe dedicado */
@@ -311,15 +316,13 @@ a {
     color: #374151;
   }
 
+  /* Una sola columna vertical (formato retrato), no dos columnas horizontales. */
   .print-report .pr-cols {
-    display: flex;
-    gap: 18px;
-    align-items: flex-start;
+    display: block;
   }
 
   .print-report .pr-cols > div {
-    flex: 1;
-    min-width: 0;
+    width: 100%;
   }
 
   .print-report .pr-table {

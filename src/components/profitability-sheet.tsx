@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Copy, Download, ExternalLink, Mail, Printer, RotateCcw } from "lucide-react";
+import { Copy, Download, ExternalLink, Mail, Printer, RotateCcw, Search } from "lucide-react";
 import { formatCLP } from "@/lib/format";
 import { sendRentabilidadEmail } from "@/app/rentabilidad/email-action";
 
@@ -154,6 +154,11 @@ function round(value: number) {
   return Math.round(Number.isFinite(value) ? value : 0);
 }
 
+// Normaliza texto (sin tildes, minusculas) para buscar por marca/modelo/version/CIT.
+function foldText(value: string) {
+  return value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+
 function net(value: number) {
   return round(value / vatRate);
 }
@@ -261,8 +266,24 @@ export function ProfitabilitySheet({ vehicles, today, initialState, syncKey, hid
   const [loadingGreenTax, setLoadingGreenTax] = useState(false);
   const [emailStatus, setEmailStatus] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [brandFilter, setBrandFilter] = useState("");
+  const [vehicleQuery, setVehicleQuery] = useState("");
 
   const selectedVehicle = vehicles.find((vehicle) => vehicle.id === state.selectedVersionId) ?? null;
+
+  const brandOptions = useMemo(
+    () => Array.from(new Set(vehicles.map((vehicle) => vehicle.brandName))).sort((a, b) => a.localeCompare(b)),
+    [vehicles]
+  );
+
+  const filteredVehicles = useMemo(() => {
+    const query = foldText(vehicleQuery.trim());
+    return vehicles.filter((vehicle) => {
+      const matchesBrand = !brandFilter || vehicle.brandName === brandFilter;
+      const matchesQuery = !query || foldText(`${vehicle.label} ${vehicle.citCode ?? ""}`).includes(query);
+      return matchesBrand && matchesQuery;
+    });
+  }, [vehicles, brandFilter, vehicleQuery]);
 
   useEffect(() => {
     if (!syncKey) return;
@@ -491,17 +512,57 @@ export function ProfitabilitySheet({ vehicles, today, initialState, syncKey, hid
         <div className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
           <div className="grid gap-3 md:grid-cols-2">
             {!hideVehicleSelector ? (
-              <label className="grid gap-1.5 md:col-span-2">
-                <span className="text-xs font-black uppercase text-steel">Version</span>
-                <select className="input" value={state.selectedVersionId} onChange={(event) => selectVehicle(event.target.value)}>
-                  <option value="">Selecciona marca, modelo y version</option>
-                  {vehicles.map((vehicle) => (
+              <div className="grid gap-2 md:col-span-2">
+                <span className="text-xs font-black uppercase text-steel">Vehiculo</span>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setBrandFilter("")}
+                    className={
+                      brandFilter === ""
+                        ? "rounded-full border border-teal-600 bg-teal-600 px-3 py-1 text-xs font-bold text-white"
+                        : "rounded-full border border-graphite/20 px-3 py-1 text-xs font-bold text-graphite transition hover:bg-mist"
+                    }
+                  >
+                    Todas
+                  </button>
+                  {brandOptions.map((brand) => (
+                    <button
+                      key={brand}
+                      type="button"
+                      onClick={() => setBrandFilter((current) => (current === brand ? "" : brand))}
+                      className={
+                        brandFilter === brand
+                          ? "rounded-full border border-teal-600 bg-teal-600 px-3 py-1 text-xs font-bold text-white"
+                          : "rounded-full border border-graphite/20 px-3 py-1 text-xs font-bold text-graphite transition hover:bg-mist"
+                      }
+                    >
+                      {brand}
+                    </button>
+                  ))}
+                </div>
+                <span className="relative block">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-steel" aria-hidden="true" />
+                  <input
+                    className="input pl-9"
+                    value={vehicleQuery}
+                    onChange={(event) => setVehicleQuery(event.target.value)}
+                    placeholder="Buscar por marca, modelo, version o Codigo CIT..."
+                    aria-label="Buscar vehiculo"
+                    autoComplete="off"
+                  />
+                </span>
+                <select className="input" value={state.selectedVersionId} onChange={(event) => selectVehicle(event.target.value)} aria-label="Seleccionar version">
+                  <option value="">
+                    {filteredVehicles.length ? "Selecciona marca, modelo y version" : "Sin resultados para el filtro"}
+                  </option>
+                  {filteredVehicles.map((vehicle) => (
                     <option key={vehicle.id} value={vehicle.id}>
                       {vehicle.label} {vehicle.citCode ? `| CIT ${vehicle.citCode}` : "| CIT pendiente"}
                     </option>
                   ))}
                 </select>
-              </label>
+              </div>
             ) : null}
             <TextInput label="Nota venta" value={state.orderNumber} onChange={(value) => update("orderNumber", value)} placeholder="Nro. nota venta" />
             <TextInput label="Interno" value={state.internalNumber} onChange={(value) => update("internalNumber", value)} placeholder="Interno o unidad" />
