@@ -99,7 +99,15 @@ function statusMessage(result: LookupResult | null) {
   return { tone: "bad" as const, icon: AlertTriangle, text: result.message ?? "No se pudo completar la busqueda." };
 }
 
-export function CustomerRutForm({ statuses, origins }: { statuses: Option[]; origins: Option[] }) {
+export function CustomerRutForm({
+  statuses,
+  origins,
+  catalog
+}: {
+  statuses: Option[];
+  origins: Option[];
+  catalog?: { brands: string[]; models: string[]; versions: string[] };
+}) {
   const [isPending, startTransition] = useTransition();
   const [rut, setRut] = useState("");
   const [consent, setConsent] = useState(false);
@@ -315,9 +323,24 @@ export function CustomerRutForm({ statuses, origins }: { statuses: Option[]; ori
       <input className="input" name="commune" value={fields.commune} onChange={(event) => updateField("commune", event.target.value)} placeholder="Comuna" />
       <input className="input" name="city" value={fields.city} onChange={(event) => updateField("city", event.target.value)} placeholder="Ciudad" />
       <input className="input" name="region" value={fields.region} onChange={(event) => updateField("region", event.target.value)} placeholder="Region" />
-      <input className="input" name="interestedBrand" placeholder="Marca interesada" />
-      <input className="input" name="interestedModel" placeholder="Modelo interesado" />
-      <input className="input" name="interestedVersion" placeholder="Version interesada" />
+      <input className="input" name="interestedBrand" placeholder="Marca interesada" list="catalogo-marcas" autoComplete="off" />
+      <input className="input" name="interestedModel" placeholder="Modelo interesado" list="catalogo-modelos" autoComplete="off" />
+      <input className="input" name="interestedVersion" placeholder="Version interesada" list="catalogo-versiones" autoComplete="off" />
+      <datalist id="catalogo-marcas">
+        {(catalog?.brands ?? []).map((item) => (
+          <option key={item} value={item} />
+        ))}
+      </datalist>
+      <datalist id="catalogo-modelos">
+        {(catalog?.models ?? []).map((item) => (
+          <option key={item} value={item} />
+        ))}
+      </datalist>
+      <datalist id="catalogo-versiones">
+        {(catalog?.versions ?? []).map((item) => (
+          <option key={item} value={item} />
+        ))}
+      </datalist>
       <input className="input" name="budget" placeholder="Presupuesto" />
       <input className="input" name="purchaseType" placeholder="Tipo de compra" />
       <input className="input" name="currentVehicle" placeholder="Vehiculo actual" />

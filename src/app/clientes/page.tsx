@@ -9,14 +9,21 @@ import { EmptyState, PageHeader, Panel, StatusPill } from "@/components/ui";
 export const dynamic = "force-dynamic";
 
 export default async function CustomersPage() {
-  const [customers, statuses, origins] = await Promise.all([
+  const [customers, statuses, origins, versions] = await Promise.all([
     prisma.customer.findMany({
       include: { status: true, origin: true, quotes: { orderBy: { createdAt: "desc" }, take: 1 } },
       orderBy: { updatedAt: "desc" }
     }),
     prisma.customerStatus.findMany({ where: { active: true }, orderBy: { position: "asc" } }),
-    prisma.customerOrigin.findMany({ where: { active: true }, orderBy: { name: "asc" } })
+    prisma.customerOrigin.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
+    prisma.version.findMany({ include: { brand: true, model: true }, orderBy: [{ brand: { name: "asc" } }, { model: { name: "asc" } }, { name: "asc" }] })
   ]);
+
+  const catalog = {
+    brands: Array.from(new Set(versions.map((v) => v.brand.name))).sort((a, b) => a.localeCompare(b)),
+    models: Array.from(new Set(versions.map((v) => `${v.brand.name} ${v.model.name}`))).sort((a, b) => a.localeCompare(b)),
+    versions: Array.from(new Set(versions.map((v) => `${v.brand.name} ${v.model.name} ${v.name}`))).sort((a, b) => a.localeCompare(b))
+  };
 
   return (
     <div className="grid gap-6">
@@ -27,6 +34,7 @@ export default async function CustomersPage() {
         <CustomerRutForm
           statuses={statuses.map((status) => ({ id: status.id, name: status.name }))}
           origins={origins.map((origin) => ({ id: origin.id, name: origin.name }))}
+          catalog={catalog}
         />
       </Panel>
 
@@ -36,11 +44,11 @@ export default async function CustomersPage() {
           <StatusPill>{customers.length} clientes</StatusPill>
         </div>
         {customers.length ? (
-          <div className="mt-4 grid gap-4 overflow-x-auto xl:grid-cols-4 2xl:grid-cols-8">
+          <div className="mt-4 flex gap-4 overflow-x-auto pb-2">
             {SALES_STAGES.map((stage) => {
               const stageCustomers = customers.filter((customer) => customer.status?.stage === stage || customer.status?.name === stage);
               return (
-                <div key={stage} className="min-w-72 rounded-lg border border-graphite/10 bg-mist/70 p-3">
+                <div key={stage} className="w-72 shrink-0 rounded-lg border border-graphite/10 bg-mist/70 p-3 dark:border-white/10 dark:bg-white/5">
                   <div className="mb-3 flex items-center justify-between gap-2">
                     <p className="text-xs font-black uppercase text-graphite">{stage}</p>
                     <StatusPill>{stageCustomers.length}</StatusPill>
