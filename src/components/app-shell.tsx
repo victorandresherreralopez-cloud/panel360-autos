@@ -382,7 +382,7 @@ export function AppShell({
       </header>
 
       {/* MAIN CONTENT AREA */}
-      <div className={clsx("transition-all duration-300", isCollapsed ? "lg:pl-20" : "lg:pl-72")}>
+      <div className={clsx("app-content-wrap transition-all duration-300", isCollapsed ? "lg:pl-20" : "lg:pl-72")}>
         <main className="mx-auto min-h-[calc(100vh-4rem)] w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           {children}
         </main>

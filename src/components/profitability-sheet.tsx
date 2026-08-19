@@ -47,6 +47,7 @@ export type FormState = {
   internalNumber: string;
   customerName: string;
   customerEmail: string;
+  jefaturaEmail: string;
   invoiceDate: string;
   priceListGross: number;
   brandBonusGross: number;
@@ -92,6 +93,7 @@ const defaultState: FormState = {
   internalNumber: "",
   customerName: "",
   customerEmail: "",
+  jefaturaEmail: "",
   invoiceDate: "",
   priceListGross: 0,
   brandBonusGross: 0,
@@ -380,73 +382,118 @@ export function ProfitabilitySheet({ vehicles, today, initialState, syncKey, hid
     }, 1500);
   };
 
-  const buildEmailRows = () =>
-    [
-      ["Precio Lista Unidad", state.priceListGross],
-      ["Bono Marca (-)", state.brandBonusGross],
-      ["Precio Lista Final", totals.priceListFinalGross],
-      ["Flete Osorno", state.fleteOsorno],
-      ["Pisos de goma", state.rubberFloor],
-      ["Set de Seguridad", state.safetyKit],
-      ["Trins", state.trins],
-      ["ACC Grabado PPU + Gardex", state.accGrabado],
-      ["Mantencion", state.maintenance],
-      ["Intereses / gastos", state.interests],
-      ["Otros", state.others],
-      ["Inscripcion", state.registration],
-      ["Imp. Fuentes Movs. (verde)", state.greenTax],
-      ["Seguro Obligatorio (SOAP)", state.soap],
-      ["Permiso Circulacion", state.circulationPermit],
-      ["ZQDV Desct. S. Escobar", state.discountSergio],
-      ["Z104 Amicar S. Escobar", state.amicarSergio],
-      ["Z127 Amicar Marca", state.amicarMarca],
-      ["Z126 Aporte adic. Marca", state.aporteAdicMarca],
-      ["Z124 Aporte Ptte. Marca", state.aportePtteMarca],
-      ["Retoma", state.tradeInValue],
-      ["Total ingresos", totals.totalIncome],
-      ["Total descuentos", totals.totalDiscounts],
-      ["Precio de venta", totals.saleTotal],
-      ["A pagar cliente", totals.customerPayment],
-      ["Margen total bruto", totals.totalMarginGross],
-      ["Margen total neto", totals.marginNet],
-      ["Rentabilidad", `${(totals.marginRatio * 100).toFixed(2)}%`]
-    ] as Array<[string, number | string]>;
-
+  // Genera el HTML del correo agrupado en secciones (igual que la hoja en pantalla),
+  // para que jefatura lo lea y autorice facilmente.
   const buildEmailHtml = () => {
-    const rowsHtml = buildEmailRows()
-      .map(
-        ([label, value]) =>
-          `<tr><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb">${label}</td><td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${typeof value === "number" ? formatCLP(value) : value}</td></tr>`
-      )
-      .join("");
-    return `<div style="font-family:Arial,sans-serif;color:#111827;max-width:640px;margin:0 auto">
-      <h2 style="margin:0 0 4px">Hoja de Rentabilidad</h2>
-      <p style="margin:0 0 2px;color:#b45309;font-weight:bold">Sergio Escobar Automotriz</p>
-      <p style="margin:0 0 12px;color:#374151">${selectedVehicle?.label ?? "Vehiculo no seleccionado"} — Cliente: ${state.customerName || "-"} — Fecha factura: ${state.invoiceDate || "-"}</p>
-      <table style="width:100%;border-collapse:collapse;font-size:13px">${rowsHtml}</table>
-      ${state.notes ? `<p style="margin-top:12px;color:#374151"><strong>Notas:</strong> ${state.notes}</p>` : ""}
-      <p style="margin-top:16px;color:#9ca3af;font-size:11px">Sistema creado por Victor Herrera</p>
+    type Row = { label: string; value: number | string; neto?: number; strong?: boolean };
+    const money = (value: number | string) => (typeof value === "number" ? formatCLP(value) : value);
+    const th = "padding:6px 10px;background:#111827;color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:.04em;text-align:left";
+    const thR = th + ";text-align:right";
+    const td = "padding:5px 10px;border-bottom:1px solid #e5e7eb;font-size:13px";
+    const tdR = td + ";text-align:right;white-space:nowrap";
+    const section = (title: string, rows: Row[], showNeto: boolean) => {
+      const head = showNeto
+        ? `<tr><th style="${th}">${title}</th><th style="${thR}">Bruto</th><th style="${thR}">Neto</th></tr>`
+        : `<tr><th style="${th}">${title}</th><th style="${thR}">Monto</th></tr>`;
+      const body = rows
+        .map((row) => {
+          const strong = row.strong ? "font-weight:bold;background:#f3f4f6;" : "";
+          return showNeto
+            ? `<tr><td style="${td};${strong}">${row.label}</td><td style="${tdR};${strong}">${money(row.value)}</td><td style="${tdR};${strong}">${row.neto != null ? formatCLP(row.neto) : ""}</td></tr>`
+            : `<tr><td style="${td};${strong}">${row.label}</td><td style="${tdR};${strong}">${money(row.value)}</td></tr>`;
+        })
+        .join("");
+      return `<table style="width:100%;border-collapse:collapse;margin:0 0 18px">${head}${body}</table>`;
+    };
+
+    const ingresos: Row[] = [
+      { label: "Precio Lista Unidad", value: state.priceListGross, neto: net(state.priceListGross) },
+      { label: "Bono Marca (-)", value: state.brandBonusGross, neto: net(state.brandBonusGross) },
+      { label: "Precio Lista Final", value: totals.priceListFinalGross, neto: totals.priceListFinalNet, strong: true },
+      { label: "Flete Osorno", value: state.fleteOsorno, neto: net(state.fleteOsorno) },
+      { label: "Pisos de goma", value: state.rubberFloor, neto: net(state.rubberFloor) },
+      { label: "Set de Seguridad", value: state.safetyKit, neto: net(state.safetyKit) },
+      { label: "Trins", value: state.trins, neto: net(state.trins) },
+      { label: "ACC Grabado PPU + Gardex", value: state.accGrabado, neto: net(state.accGrabado) },
+      { label: "Mantencion", value: state.maintenance, neto: net(state.maintenance) },
+      { label: "Intereses / gastos", value: state.interests, neto: net(state.interests) },
+      { label: "Otros", value: state.others, neto: net(state.others) },
+      { label: "Total ingresos facturables", value: totals.invoiceableGross, neto: totals.invoiceableNet, strong: true }
+    ];
+    const noFact: Row[] = [
+      { label: "Inscripcion", value: state.registration },
+      { label: "Imp. Fuentes Movs. (verde)", value: state.greenTax },
+      { label: "Seguro Obligatorio (SOAP)", value: state.soap },
+      { label: "Permiso Circulacion", value: state.circulationPermit },
+      { label: "Total no facturables", value: totals.nonInvoiceable, strong: true }
+    ];
+    const descuentos: Row[] = [
+      { label: "ZQDV Desct. S. Escobar", value: state.discountSergio, neto: net(state.discountSergio) },
+      { label: "Z104 Amicar S. Escobar", value: state.amicarSergio, neto: net(state.amicarSergio) },
+      { label: "Z127 Amicar Marca", value: state.amicarMarca, neto: net(state.amicarMarca) },
+      { label: "Z126 Aporte adic. Marca", value: state.aporteAdicMarca, neto: net(state.aporteAdicMarca) },
+      { label: "Z124 Aporte Ptte. Marca", value: state.aportePtteMarca, neto: net(state.aportePtteMarca) },
+      { label: "Retoma", value: state.tradeInValue, neto: net(state.tradeInValue) },
+      { label: "Total descuentos", value: totals.totalDiscounts, neto: net(totals.totalDiscounts), strong: true }
+    ];
+    const resumen: Row[] = [
+      { label: "Total ingresos", value: totals.totalIncome },
+      { label: "Total descuentos", value: totals.totalDiscounts },
+      { label: "Precio de venta", value: totals.saleTotal, strong: true },
+      { label: "Retoma", value: state.tradeInValue },
+      { label: "A pagar cliente", value: totals.customerPayment, strong: true }
+    ];
+    const margenes: Row[] = [
+      { label: "Margen unidad %", value: `${state.marginPercent}%` },
+      { label: "Margen vehiculo bruto", value: totals.vehicleMarginGross },
+      { label: "Utilidad credito", value: state.creditMargin },
+      { label: "Margen total bruto", value: totals.totalMarginGross, strong: true },
+      { label: "Margen total neto", value: totals.marginNet },
+      { label: "Rentabilidad", value: `${(totals.marginRatio * 100).toFixed(2)}%`, strong: true }
+    ];
+
+    return `<div style="font-family:Arial,sans-serif;color:#111827;max-width:660px;margin:0 auto">
+      <h2 style="margin:0 0 4px">Solicitud de autorizacion — Hoja de Rentabilidad</h2>
+      <p style="margin:0 0 10px;color:#b45309;font-weight:bold">Sergio Escobar Automotriz</p>
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:13px;color:#374151;line-height:1.6">
+        <div><strong>Vehiculo:</strong> ${selectedVehicle?.label ?? "No seleccionado"}</div>
+        <div><strong>Codigo CIT:</strong> ${selectedVehicle?.citCode ?? "Pendiente"} &nbsp;·&nbsp; <strong>Precio venta c/IVA (SII):</strong> ${formatCLP(siiSalePrice)}</div>
+        <div><strong>Cliente:</strong> ${state.customerName || "-"} &nbsp;·&nbsp; <strong>Nota venta:</strong> ${state.orderNumber || "-"} &nbsp;·&nbsp; <strong>Interno:</strong> ${state.internalNumber || "-"}</div>
+        <div><strong>Fecha factura:</strong> ${state.invoiceDate || "-"}</div>
+      </div>
+      <p style="margin:0 0 14px;color:#374151;font-size:13px">Estimada jefatura, se solicita <strong>autorizacion</strong> de la siguiente hoja de rentabilidad:</p>
+      ${section("Ingresos", ingresos, true)}
+      ${section("No facturables", noFact, false)}
+      ${section("Descuentos", descuentos, true)}
+      ${section("Resumen de venta", resumen, false)}
+      ${section("Margenes", margenes, false)}
+      ${state.notes ? `<p style="margin-top:6px;color:#374151;font-size:13px"><strong>Notas:</strong> ${state.notes}</p>` : ""}
+      <p style="margin-top:18px;color:#9ca3af;font-size:11px;border-top:1px solid #e5e7eb;padding-top:8px">Documento generado por Panel360 Autos · Sistema creado por Victor Herrera</p>
     </div>`;
   };
 
   const handleSendEmail = async () => {
     setEmailStatus("");
-    const to = state.customerEmail.trim();
+    if (!selectedVehicle) {
+      setEmailStatus("⚠️ Selecciona un vehiculo primero.");
+      return;
+    }
+    const to = state.jefaturaEmail.trim();
     if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
-      setEmailStatus("⚠️ Ingresa un correo de cliente valido primero.");
+      setEmailStatus("⚠️ Ingresa el correo de jefatura para enviar la autorizacion.");
       return;
     }
     setSendingEmail(true);
     try {
       const result = await sendRentabilidadEmail({
         to,
-        subject: `Hoja de rentabilidad ${selectedVehicle?.label ?? ""}`.trim(),
+        subject: `Autorizacion hoja de rentabilidad - ${selectedVehicle?.label ?? ""}${state.customerName ? ` - ${state.customerName}` : ""}`.trim(),
         html: buildEmailHtml()
       });
       if (result.ok) {
-        setEmailStatus(`✅ Correo enviado a ${to}`);
+        setEmailStatus(`✅ Enviado a jefatura (${to})`);
       } else if (result.reason === "RESEND_NOT_CONFIGURED") {
-        setEmailStatus("⚠️ El envio de correo aun no esta activado (falta configurar Resend en el servidor).");
+        setEmailStatus("⚠️ El envio de correo aun no esta activado en el servidor.");
       } else {
         setEmailStatus(`No se pudo enviar: ${result.reason ?? "error desconocido"}`);
       }
@@ -623,6 +670,7 @@ export function ProfitabilitySheet({ vehicles, today, initialState, syncKey, hid
             <TextInput label="Interno" value={state.internalNumber} onChange={(value) => update("internalNumber", value)} placeholder="Interno o unidad" />
             <TextInput label="Cliente" value={state.customerName} onChange={(value) => update("customerName", value)} placeholder="Nombre cliente" />
             <TextInput label="Correo cliente" type="email" value={state.customerEmail} onChange={(value) => update("customerEmail", value)} placeholder="correo@cliente.cl" />
+            <TextInput label="Correo jefatura (autorizacion)" type="email" value={state.jefaturaEmail} onChange={(value) => update("jefaturaEmail", value)} placeholder="jefatura@sergioescobar.cl" />
             <TextInput label="Fecha factura" type="date" value={state.invoiceDate} onChange={(value) => update("invoiceDate", value)} />
           </div>
 
@@ -705,7 +753,7 @@ export function ProfitabilitySheet({ vehicles, today, initialState, syncKey, hid
               </button>
               <button className="btn btn-secondary" type="button" onClick={handleSendEmail} disabled={sendingEmail}>
                 <Mail className="h-4 w-4" aria-hidden="true" />
-                {sendingEmail ? "Enviando..." : "Enviar correo"}
+                {sendingEmail ? "Enviando..." : "Enviar a jefatura"}
               </button>
             </div>
             {emailStatus ? <p className="text-xs font-bold text-graphite">{emailStatus}</p> : null}
