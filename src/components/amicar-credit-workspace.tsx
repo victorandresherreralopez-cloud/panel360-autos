@@ -306,7 +306,7 @@ export function AmicarCreditWorkspace({ customers, quotes, initialValues, today 
               <p className="font-black text-ink">{currentVehicle || "Vehiculo pendiente"}</p>
               <p className="mt-1 font-semibold text-steel">Precio venta: {currentSaleAmount ? formatCLP(currentSaleAmount) : "Pendiente"}</p>
             </div>
-            <dl className="grid grid-cols-2 gap-3">
+            <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="rounded-lg border border-graphite/10 p-3">
                 <dt className="text-xs font-black uppercase text-steel">Pie</dt>
                 <dd className="mt-1 font-black text-ink">{downPaymentValue ? formatCLP(downPaymentValue) : "Pendiente"}</dd>

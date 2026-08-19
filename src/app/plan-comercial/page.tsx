@@ -83,7 +83,7 @@ export default async function PlanComercialPage() {
       />
 
       {/* KPI SEMÁFOROS */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {[
           { label: "Actualizadas", count: verde, color: "emerald", icon: CheckCircle2 },
           { label: "Parciales", count: amarillo, color: "amber", icon: AlertCircle },
