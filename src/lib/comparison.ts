@@ -119,7 +119,22 @@ export type ComparisonRowStatus = "same" | "different" | "partial" | "missing";
 function hasComparableValue(value: string | number | null | undefined) {
   if (value === null || value === undefined) return false;
   if (typeof value === "string" && !value.trim()) return false;
+  if (typeof value === "string" && value.trim().toLowerCase() === "no disponible") return false;
   return true;
+}
+
+// Desglosa el resumen "Clave: Valor; Clave: Valor" en un objeto para comparar.
+function parseEquipmentSummary(summary: string | null | undefined): Record<string, string> {
+  const map: Record<string, string> = {};
+  if (!summary) return map;
+  summary.split(";").forEach((part) => {
+    const index = part.indexOf(":");
+    if (index === -1) return;
+    const key = part.slice(0, index).trim();
+    const value = part.slice(index + 1).trim();
+    if (key && value) map[key] = value;
+  });
+  return map;
 }
 
 export function rowStatusLabel(status: ComparisonRowStatus) {
@@ -157,13 +172,34 @@ export function buildComparisonRows(versions: ComparableVersion[]) {
     // HERRAMIENTA INTERNA DE CIERRE
     { key: "closingTool.totalClosingSupportCash", label: "Apoyo Cierre Compartido (CES + Marca)", formatter: (_: any, v: ComparableVersion) => (v.closingTool.hasClosingSupport ? formatCLP(v.closingTool.totalClosingSupportCash) : "Sin fondo cierre") },
 
-    // FICHA TÉCNICA Y EQUIPAMIENTO
-    ...VEHICLE_COMPARE_FIELDS.map(([label, key]) => ({ key, label, formatter: (val: any) => missing(val) }))
-  ];
+    // FICHA TÉCNICA (campos estructurados)
+    ...VEHICLE_COMPARE_FIELDS.filter(([, key]) => key !== "equipmentSummary").map(([label, key]) => ({ key, label, get: undefined as ((v: ComparableVersion) => any) | undefined, formatter: (val: any) => missing(val) }))
+  ] as Array<{ key: string; label: string; get?: (v: ComparableVersion) => any; formatter: (val: any, v: ComparableVersion) => string }>;
 
+  // EQUIPAMIENTO: desglosamos el texto "Clave: Valor; Clave: Valor" en filas
+  // comparables (asi no queda "Sin datos" cuando la info viene en el resumen).
+  const equipKeys: string[] = [];
+  const seen = new Set<string>();
+  versions.forEach((v) => {
+    Object.keys(parseEquipmentSummary(v.equipmentSummary)).forEach((k) => {
+      if (!seen.has(k)) {
+        seen.add(k);
+        equipKeys.push(k);
+      }
+    });
+  });
+  equipKeys.forEach((k) => {
+    rawFields.push({
+      key: `equip:${k}`,
+      label: k,
+      get: (v: ComparableVersion) => parseEquipmentSummary(v.equipmentSummary)[k] ?? null,
+      formatter: (val: any) => missing(val)
+    });
+  });
 
   return rawFields.map((field) => {
     const getValue = (version: ComparableVersion) => {
+      if (field.get) return field.get(version);
       const parts = field.key.split(".");
       let val: any = version;
       for (const p of parts) val = val?.[p];

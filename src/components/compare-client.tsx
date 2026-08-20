@@ -80,7 +80,9 @@ export function CompareClient({
   }, [selectedIds, versions]);
 
   const rows = useMemo(() => buildComparisonRows(comparable), [comparable]);
-  const visibleRows = showOnlyDifferences ? rows.filter((row) => row.status === "different" || row.status === "partial") : rows;
+  const visibleRows = showOnlyDifferences
+    ? rows.filter((row) => row.status === "different" || row.status === "partial")
+    : rows.filter((row) => row.status !== "missing");
   const priceSummary = useMemo(() => buildPriceSummary(comparable), [comparable]);
 
   const aidAlerts = useMemo(() => {
