@@ -70,10 +70,12 @@ export default async function QuotePage({ searchParams }: { searchParams?: Recor
 
   return (
     <div className="grid gap-6">
-      <PageHeader title="Cotizador" description="Cotiza el auto y arma en paralelo la hoja de rentabilidad con el mismo vehiculo, cliente y descuento." />
-      <Notice>
-        Al seleccionar una version se precarga precio, Codigo CIT y precio venta con IVA. Desde la misma hoja puedes consultar permiso de circulacion, calcular Imp. Fuentes Movs., imprimir o enviar por correo.
-      </Notice>
+      <div className="no-print grid gap-6">
+        <PageHeader title="Cotizador" description="Cotiza el auto y arma en paralelo la hoja de rentabilidad con el mismo vehiculo, cliente y descuento." />
+        <Notice>
+          Al seleccionar una version se precarga precio, Codigo CIT y precio venta con IVA. Desde la misma hoja puedes consultar permiso de circulacion, calcular Imp. Fuentes Movs., imprimir o enviar por correo.
+        </Notice>
+      </div>
 
       {vehicles.length ? (
         <QuoteProfitabilityWorkspace
@@ -87,7 +89,7 @@ export default async function QuotePage({ searchParams }: { searchParams?: Recor
         <EmptyState title="No hay versiones para cotizar." description="Carga una version y un precio aprobado antes de crear cotizaciones." actionHref="/admin" actionLabel="Administrar catalogo" />
       )}
 
-      <Panel>
+      <Panel className="no-print">
         <h2 className="text-xl font-black text-ink">Cotizaciones guardadas</h2>
         <div className="mt-4 grid gap-3">
           {quotes.length ? (

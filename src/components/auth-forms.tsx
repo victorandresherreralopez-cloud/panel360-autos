@@ -8,7 +8,19 @@ import { loginAction, requestPasswordResetAction, resetPasswordAction } from "@/
 // Sonido corto de "inicio de sesion" (power-up) generado con Web Audio,
 // sin archivos externos. Se dispara con el clic (gesto del usuario), asi el
 // navegador permite reproducirlo.
+// Reproduce el sonido de inicio de sesion. Si existe /login-sound.mp3 (archivo
+// que sube el usuario) lo usa; si no, cae al sonido sintetico de respaldo.
 function playLoginSound() {
+  try {
+    const audio = new Audio("/login-sound.mp3");
+    audio.volume = 0.6;
+    audio.play().catch(() => playSynthChime());
+  } catch {
+    playSynthChime();
+  }
+}
+
+function playSynthChime() {
   try {
     const AudioCtx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioCtx) return;
