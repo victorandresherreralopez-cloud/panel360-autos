@@ -14,7 +14,17 @@ function playLoginSound() {
   try {
     const audio = new Audio("/login-sound.mp3");
     audio.volume = 0.6;
-    audio.play().catch(() => playSynthChime());
+    // La cancion parte desde el segundo 48 (el navegador salta a ese punto).
+    const seek = () => {
+      try {
+        if (audio.currentTime < 47) audio.currentTime = 48;
+      } catch {
+        /* seek no disponible aun */
+      }
+    };
+    audio.addEventListener("loadedmetadata", seek);
+    audio.addEventListener("canplay", seek);
+    audio.play().then(seek).catch(() => playSynthChime());
   } catch {
     playSynthChime();
   }
